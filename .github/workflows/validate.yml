@@ -1,0 +1,29 @@
+name: Static validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.9.8
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Terraform format
+        run: terraform -chdir=terraform fmt -check -recursive
+      - name: Terraform initialize without backend
+        run: terraform -chdir=terraform init -backend=false -input=false
+      - name: Terraform validate
+        run: terraform -chdir=terraform validate
+      - name: Repository security invariants
+        run: python tests/static_checks.py
