@@ -22,6 +22,7 @@ required_files = [
     "docs/05-operations.md",
     "docs/06-incident-response.md",
     "docs/07-evidence-guide.md",
+    "docs/10-gap-analysis.md",
     "terraform/network.tf",
     "terraform/security.tf",
     "terraform/compute.tf",
