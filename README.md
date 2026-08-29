@@ -1,103 +1,80 @@
-# AWS 構築案件パック
+# AWS構築案件パック - 未経験からサーバー構築エンジニアを目指すポートフォリオ
 
-未経験からサーバー構築エンジニアを目指す人が、AWS の設計・構築・試験・運用・障害対応を一つの案件として説明できるようになるための学習用ポートフォリオです。
+未経験からサーバー構築エンジニア(インフラエンジニア)への転職を目指して作成した、AWSでのインフラ構築ポートフォリオです。
 
-> [!IMPORTANT]
-> Terraform の静的検査はできますが、実 AWS 環境への `plan` / `apply` / 疎通試験は実施していません（`NOT RUN`）。料金が発生し得るため、予算アラートを設定し、演習後に削除してください。
+「静的サイトの公開」という一番シンプルな案件から、「可用性を高めた本番相当システム」「セキュリティ監視基盤」「コードによる自動構築(IaC/CI-CD)」まで、実務でよくある構築案件を**レベル1〜6の6段階**に分けて、段階的に難易度を上げながら構築しました。専門用語は初出のたびに言い換え・たとえ話つきで解説し、随所に「🧠 覚え方のコツ」を入れることで、初心者でも読みながら理解し、記憶に残せるように設計しています。
 
-## 30秒でわかる案件
+## 自己紹介
 
-| 項目 | 内容 |
-|---|---|
-| 顧客要望 | Web サービスを止まりにくく、安全に公開したい |
-| 構成 | 2 AZ、ALB、プライベート EC2、Auto Scaling、CloudWatch、SSM |
-| セキュリティ | EC2 に公開 IP と SSH 受信規則を持たせず、ALB からの HTTP のみ許可 |
-| 可用性 | 2 AZ に分散し、異常な EC2 を ALB/Auto Scaling で切り離し・置換 |
-| 運用 | メトリクス、ログ、アラーム、Runbook、試験・証跡テンプレート |
-| 構築方式 | Terraform（再現可能な Infrastructure as Code） |
+はじめまして、◯◯(氏名)と申します。
 
-## 覚え方は「要・設・作・試・運・戻」
+未経験からサーバー構築エンジニアへの転職を目指し、独学でAWSの学習を進めてきました。「手を動かして理解する」ことを重視し、マネジメントコンソールでの手作業構築から、最終的にはコードによる自動構築(IaC)まで、実務で求められるステップを一通り自分の手で辿ることを目標にこのポートフォリオを作成しました。
 
-1. **要**件: 何を、どの水準で守るか決める
-2. **設**計: 要件を AWS の構成と設定値に変換する
-3. **作**業: Terraform で同じ環境を再現できるようにする
-4. **試**験: 正常系・異常系・セキュリティを確認する
-5. **運**用: 監視、変更、バックアップ、障害対応を定義する
-6. **戻**し: 失敗時のロールバックと演習後の削除を行う
+- 学習期間: ◯◯ヶ月(◯◯年◯◯月〜)
+- 学習方法: ◯◯(書籍名/学習サービス名など)、AWS公式ドキュメント
+- 保有資格: ◯◯(取得済み・学習中の資格があれば記載)
+- このポートフォリオで意識したこと: 「作って終わり」にせず、**なぜその構成にしたのか**をセキュリティ・コスト・可用性の観点から自分の言葉で説明できるようにすること
 
-## 構成図
+> 🧠 **このセクションの使い方**: 上記の「◯◯」部分はテンプレートです。実際の学習期間・学習方法・資格・志望動機に書き換えてご利用ください。
+
+## このポートフォリオの構成
 
 ```mermaid
-flowchart TB
-  U[利用者] -->|HTTP 80 / 本番は HTTPS 443| ALB
-  CW[CloudWatch / ログ・メトリクス・アラーム]
-  SSM[Systems Manager / Session Manager]
-  subgraph VPC["VPC 10.20.0.0/16"]
-    subgraph PUB[パブリックサブネット / 2 AZ]
-      ALB[Application Load Balancer]
-      NAT[NAT Gateway / lab: 1台 / production: 2台]
-    end
-    subgraph PRI[プライベートサブネット / 2 AZ]
-      EC2A[EC2 / AZ-a]
-      EC2C[EC2 / AZ-c]
-    end
-    ALB -->|HTTP 80 / ALB SG のみ| EC2A
-    ALB -->|HTTP 80 / ALB SG のみ| EC2C
-    EC2A --> NAT
-    EC2C --> NAT
-  end
-  EC2A -.ログ.-> CW
-  EC2C -.ログ.-> CW
-  SSM -.管理接続・SSH不要.-> EC2A
-  SSM -.管理接続・SSH不要.-> EC2C
+flowchart LR
+    L1["レベル1<br/>静的サイト公開"] --> L2["レベル2<br/>EC2 Webサーバー"]
+    L2 --> L3["レベル3<br/>3層 高可用性構成"]
+    L3 --> L4["レベル4<br/>WordPress本番運用"]
+    L4 --> L5["レベル5<br/>セキュリティ監視基盤"]
+    L5 --> L6["レベル6<br/>IaC + CI/CD"]
+
+    Docs["補足ドキュメント<br/>基礎知識/用語集/コスト/面接対策"] -.->|前提知識として参照| L1
 ```
 
-## 7日間の学習順序
+> 🧠 **覚え方のコツ**: 6つの案件は「①公開する→②自分でサーバーを建てる→③壊れなくする→④実運用に耐える→⑤守り続ける→⑥自動化する」という、実際のインフラエンジニアのキャリアで踏む順番そのままに並べています。レベル番号=成長のステップ、と覚えてください。
 
-| Day | ゴール | 教材 |
-|---:|---|---|
-| 1 | 案件と用語を説明する | [ロードマップ](docs/00-learning-roadmap.md)、[要件定義](docs/01-requirements.md) |
-| 2 | IP、経路、通信許可を説明する | [基本・詳細設計](docs/02-design.md) |
-| 3 | コードを読み、静的検査する | [構築手順](docs/03-build-guide.md)、`terraform/` |
-| 4 | 合否基準を使って試験する | [試験計画](docs/04-test-plan.md) |
-| 5 | 監視と障害の初動を説明する | [運用手順](docs/05-operations.md)、[障害対応](docs/06-incident-response.md) |
-| 6 | 成果を証拠として整理する | [証跡ガイド](docs/07-evidence-guide.md) |
-| 7 | 面接で判断理由を話す | [面接説明ガイド](docs/08-interview-guide.md) |
+## 案件一覧(スキルマップ)
 
-学習後に「次に何を足すべきか」で迷った場合は、[不足点チェックと発展計画](docs/10-gap-analysis.md) を使い、まず実測証跡、次に自動検査、その後に本番向け機能の順で改善してください。
+| Lv | 案件名 | 主なAWSサービス | 身につくスキル | リンク |
+|---|---|---|---|---|
+| 1 | 静的Webサイト公開環境の構築 | S3, CloudFront, Route 53, ACM | AWS基本操作、CDN配信の仕組み、独自ドメイン+HTTPS化 | [→ projects/01-static-website](projects/01-static-website/README.md) |
+| 2 | EC2で自分のWebサーバーを構築する | VPC, EC2, セキュリティグループ, Elastic IP | VPC・サブネット設計、SSH接続、Webサーバー構築の基礎 | [→ projects/02-ec2-web-server](projects/02-ec2-web-server/README.md) |
+| 3 | 可用性を高めた3層Webシステム構築 | ALB, Auto Scaling, Multi-AZ RDS, NATゲートウェイ | 冗長化設計、負荷分散、多層防御のSG設計 | [→ projects/03-ha-three-tier](projects/03-ha-three-tier/README.md) |
+| 4 | 本番運用を想定したWordPress環境構築 | ElastiCache, S3, CloudFront, AWS Backup, CloudWatch | パフォーマンス設計、バックアップ運用、監視アラート設計 | [→ projects/04-wordpress-production](projects/04-wordpress-production/README.md) |
+| 5 | セキュアな監視・ガバナンス基盤の構築 | IAM, CloudTrail, AWS Config, GuardDuty, WAF | 最小権限設計、証跡管理、脅威検知、Webアプリ防御 | [→ projects/05-security-monitoring](projects/05-security-monitoring/README.md) |
+| 6 | IaCとCI/CDによる自動構築 | Terraform, S3, DynamoDB, CodePipeline, CodeBuild | Infrastructure as Code、state管理、CI/CDパイプライン設計 | [→ projects/06-iac-cicd](projects/06-iac-cicd/README.md) |
 
-## クイックスタート（静的検査）
+## 読み方ガイド
 
-前提: Terraform 1.6 以降、Python 3.10 以降。AWS CLI は実環境を使う場合のみ必要です。
+1. **AWSにまだ慣れていない方は** まず [docs/01-aws-basics-for-beginners.md](docs/01-aws-basics-for-beginners.md) で全体像をつかんでから、レベル1から順番に読み進めてください。
+2. **各案件の中で知らない用語が出てきたら** [docs/02-glossary.md](docs/02-glossary.md) を辞書として参照してください。すべての案件からリンクしています。
+3. **手を動かして検証する場合は** 必ず [docs/03-cost-management.md](docs/03-cost-management.md) の無料利用枠・削除チェックリストを先に確認してから進めてください(課金事故防止)。
+4. **採用担当者・面接官の方へ**: 各案件のREADMEには構成図・構築手順に加えて「セキュリティのポイント」「コスト概算」「面接でのアピールポイント」まで記載しています。特に各案件末尾の想定Q&Aから読んでいただくと、設計意図が伝わりやすいかと思います。
 
-```powershell
-terraform -chdir=terraform fmt -check -recursive
-terraform -chdir=terraform init -backend=false
-terraform -chdir=terraform validate
-python tests/static_checks.py
-```
+## 補足ドキュメント
 
-実環境での作業前には、[構築手順](docs/03-build-guide.md) の認証・課金・ロールバックのゲートを完了してください。いきなり `apply` しないでください。
+| ドキュメント | 内容 |
+|---|---|
+| [AWS基礎知識(超入門)](docs/01-aws-basics-for-beginners.md) | クラウドとは何か、リージョン/AZ、サービスカテゴリの全体像 |
+| [AWS用語集(覚え方付き)](docs/02-glossary.md) | 全案件に登場する用語を1箇所に整理した辞書、混同しやすい用語の比較表 |
+| [コスト管理と無料利用枠ガイド](docs/03-cost-management.md) | 無料利用枠の考え方、課金事故を防ぐ削除チェックリスト、各案件の費用概算まとめ |
+| [このポートフォリオの面接での伝え方](docs/04-interview-prep.md) | 自己紹介テンプレート、案件ごとのエレベーターピッチ、想定質問と回答の型 |
 
-## ポートフォリオの完了条件
+## 設計方針
 
-- [ ] 要件と設計判断を自分の言葉で説明できる
-- [ ] `fmt` / `validate` / 静的チェックが成功する
-- [ ] AWS 上での `plan` と `apply` の結果を、秘密情報を除いて保存する
-- [ ] ALB 疎通、2 AZ 配置、SSM 接続、ログ、アラームを実測する
-- [ ] 障害訓練を1件行い、検知から復旧までを時系列で記録する
-- [ ] `destroy` 後、残存リソースと請求画面を確認する
+このポートフォリオは、単に「動くものを作る」だけでなく、以下を意識して設計しています。
 
-現時点では実環境項目は `NOT RUN` です。テンプレートの存在は実績ではありません。
-
-## AWS 公式資料
-
-- [VPC のセキュリティベストプラクティス](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-best-practices.html)
-- [プライベートサブネットと NAT の構成例](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-private-subnets-nat.html)
-- [ALB のヘルスチェック](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html)
-- [Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)
-- [CloudWatch Agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html)
+- **段階的な難易度設計**: レベル1〜6で、コンソール操作の基礎からセキュリティ運用・IaC化まで、実務で求められるステップを段階的に踏めるようにしています。
+- **初心者が理解・記憶できる説明**: 専門用語は初出時に必ず言い換えを添え、各所に「🧠 覚え方のコツ」としてたとえ話・語呂合わせを入れています。
+- **手を動かせる具体性**: 構築手順はCIDR・ポート番号・設定画面の項目名まで具体的に記載し、実際にAWSマネジメントコンソールで再現できるレベルまで書いています。
+- **セキュリティ・コストを最初から意識する**: 各案件に「セキュリティのポイント」「コスト概算」を必ず設け、「作って終わり」にしない視点を組み込んでいます。
+- **面接で語れる形にする**: 各案件に想定Q&Aを用意し、構成の「なぜ」を自分の言葉で説明できることを重視しています。
 
 ## ライセンス
 
-[MIT License](LICENSE)
+このリポジトリは [MIT License](LICENSE) のもとで公開しています。学習目的での参照・流用は自由です。
+
+## 関連ドキュメント
+
+- [AWS基礎知識(超入門)](docs/01-aws-basics-for-beginners.md)
+- [AWS用語集(覚え方付き)](docs/02-glossary.md)
+- [最初の案件(レベル1: 静的Webサイト公開)](projects/01-static-website/README.md)
