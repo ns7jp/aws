@@ -17,7 +17,7 @@
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 FAILED=0
 pass() { echo "  ✅ $1"; }
