@@ -1,0 +1,16 @@
+# environments/dev/terraform.tfvars.example
+# このファイルを terraform.tfvars にコピーして値を書き換えてください。
+# terraform.tfvars は .gitignore 済み(自分の IP などを含むためコミットしない)。
+
+# SSH接続を許可する自分のグローバルIP(CIDR形式)
+# 確認方法: curl -s https://checkip.amazonaws.com
+my_ip_cidr = "203.0.113.10/32"
+
+# リソース名のプレフィックス
+project_name = "handson-dev"
+
+# EC2インスタンスタイプ
+instance_type = "t3.micro"
+
+# SSH接続に使うEC2キーペア名(SSHしない場合はこの行を削除するか null にする)
+# key_name = "my-keypair"

@@ -236,6 +236,10 @@ A. まずGuardDutyの検知結果で「何が」「いつ」検知されたか�
 - [AWS無料利用枠](https://aws.amazon.com/jp/free/)
 - [AWS Well-Architected Framework](https://aws.amazon.com/jp/architecture/well-architected/)
 
+## ハンズオンキット(そのまま実行できるスクリプト)
+
+この案件の構成を AWS CLI / Terraform で自動構築・削除できるキットを [handson/](handson/README.md) に用意しています。本編の手順をコンソールで一度体験したあと、キットで「コードによる再現」を試すと理解が定着します。⚠️ 実行前に必ず [handson/README.md](handson/README.md) の課金注意と削除手順を読んでください。
+
 ## 関連ドキュメント
 
 - [ポートフォリオ全体トップ](../../README.md)

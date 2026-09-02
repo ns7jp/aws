@@ -43,6 +43,21 @@ flowchart LR
 | 5 | セキュアな監視・ガバナンス基盤の構築 | IAM, CloudTrail, AWS Config, GuardDuty, WAF | 最小権限設計、証跡管理、脅威検知、Webアプリ防御 | [→ projects/05-security-monitoring](projects/05-security-monitoring/README.md) |
 | 6 | IaCとCI/CDによる自動構築 | Terraform, S3, DynamoDB, CodePipeline, CodeBuild | Infrastructure as Code、state管理、CI/CDパイプライン設計 | [→ projects/06-iac-cicd](projects/06-iac-cicd/README.md) |
 
+## ハンズオンキット(手を動かして構築する)
+
+各案件の `handson/` ディレクトリに、本編の構成を **AWS CLI スクリプト(レベル1〜5)/ Terraform(レベル6)で自動構築・削除できるキット**を用意しています。コンソールで一度手順を体験したあと、キットで再現すると「なぜその設定が必要か」が体で覚えられます。
+
+| Lv | キット | 構築方式 | 主な内容 |
+|---|---|---|---|
+| 1 | [01-static-website/handson](projects/01-static-website/handson/README.md) | AWS CLI | S3 + CloudFront(OAC)構築、HTMLサンプル、削除スクリプト |
+| 2 | [02-ec2-web-server/handson](projects/02-ec2-web-server/handson/README.md) | AWS CLI | VPC〜EC2〜Elastic IP を一括構築、user-data で Apache 自動導入 |
+| 3 | [03-ha-three-tier/handson](projects/03-ha-three-tier/handson/README.md) | AWS CLI | 6サブネット、NAT、3層SG、ALB、Auto Scaling、RDS Multi-AZ |
+| 4 | [04-wordpress-production/handson](projects/04-wordpress-production/handson/README.md) | AWS CLI(レベル3の差分) | Secrets Manager、ElastiCache、S3メディア、AWS Backup、CloudWatchアラーム |
+| 5 | [05-security-monitoring/handson](projects/05-security-monitoring/handson/README.md) | AWS CLI | IAMグループ+MFA強制、CloudTrail、Config、GuardDuty、WAF |
+| 6 | [06-iac-cicd/handson](projects/06-iac-cicd/handson/README.md) | Terraform | state用S3/DynamoDB、VPC/SG/EC2モジュール、CodeBuild buildspec |
+
+> ⚠️ **必ず読んでください**: キットは実AWS環境での動作検証を行っていません(構文チェックのみ)。実行前に各 `handson/README.md` と [コスト管理ガイド](docs/03-cost-management.md) を読み、予算アラートを設定し、検証後は `cleanup.sh` / `terraform destroy` で必ず削除してください。
+
 ## 読み方ガイド
 
 1. **AWSにまだ慣れていない方は** まず [docs/01-aws-basics-for-beginners.md](docs/01-aws-basics-for-beginners.md) で全体像をつかんでから、レベル1から順番に読み進めてください。

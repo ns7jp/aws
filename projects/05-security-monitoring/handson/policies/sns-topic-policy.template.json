@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAccountOwnerFullAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::__ACCOUNT_ID__:root"
+      },
+      "Action": "SNS:*",
+      "Resource": "__TOPIC_ARN__"
+    },
+    {
+      "Sid": "AllowEventBridgePublish",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "events.amazonaws.com"
+      },
+      "Action": "SNS:Publish",
+      "Resource": "__TOPIC_ARN__"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWSポートフォリオ - 静的Webサイト</title>
+  <style>
+    body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.7; }
+    h1 { border-bottom: 2px solid #ff9900; padding-bottom: 8px; }
+    .badge { display: inline-block; background: #232f3e; color: #fff; padding: 2px 10px; border-radius: 4px; font-size: 0.85em; }
+    footer { margin-top: 40px; font-size: 0.85em; color: #777; }
+  </style>
+</head>
+<body>
+  <h1>AWSポートフォリオ</h1>
+  <p><span class="badge">レベル1</span> 静的Webサイト公開環境(S3 + CloudFront + OAC)</p>
+  <p>このページは Amazon S3 に保存された HTML を、Amazon CloudFront 経由で HTTPS 配信しています。</p>
+  <h2>構成のポイント</h2>
+  <ul>
+    <li>S3バケットはパブリックアクセスをすべてブロック(非公開のオリジン)</li>
+    <li>CloudFront の OAC(Origin Access Control)経由でのみ S3 から取得</li>
+    <li>HTTP アクセスは HTTPS へ自動リダイレクト</li>
+  </ul>
+  <footer>Built with AWS CLI v2 / このページが表示されていれば構築成功です。</footer>
+</body>
+</html>
