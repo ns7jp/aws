@@ -1,0 +1,37 @@
+# cicd/buildspec-apply.yml
+# CodePipeline の Deploy ステージ(terraform apply)用 buildspec
+# 承認済みの tfplan(Build ステージの出力アーティファクト)をそのまま適用します。
+# CodePipeline 側で、このアクションの入力アーティファクトに
+# 「Source(リポジトリ)」と「tfplan-artifact(Build の出力)」の両方を指定し、
+# プライマリソースを Source にしてください。
+version: 0.2
+
+env:
+  variables:
+    TERRAFORM_VERSION: "1.9.8"
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "false"
+    TF_DIR: "projects/06-iac-cicd/handson/environments/dev"
+
+phases:
+  install:
+    commands:
+      - echo "Installing Terraform ${TERRAFORM_VERSION}"
+      - curl -sSLo /tmp/terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+      - unzip -o /tmp/terraform.zip -d /usr/local/bin
+      - terraform version
+  pre_build:
+    commands:
+      # セカンダリアーティファクトの tfplan を作業ディレクトリにコピーする
+      # (CODEBUILD_SRC_DIR_<アーティファクト名> 環境変数で参照できる)
+      - cp "${CODEBUILD_SRC_DIR_tfplan_artifact}/tfplan" "${TF_DIR}/tfplan"
+      - cd "${TF_DIR}"
+      - terraform init -input=false
+  build:
+    commands:
+      - cd "${TF_DIR}"
+      - terraform apply -input=false -auto-approve tfplan
+  post_build:
+    commands:
+      - cd "${TF_DIR}"
+      - terraform output

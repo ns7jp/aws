@@ -1,0 +1,20 @@
+# Terraform 作業ディレクトリ(プロバイダバイナリなど)
+.terraform/
+
+# tfstate はローカルに置かない(bootstrap のローカル state も含む)。機密情報を含むため絶対にコミットしない
+*.tfstate
+*.tfstate.*
+
+# 自分の IP などを含む変数ファイル(example は共有用なので除外しない)
+*.tfvars
+!*.tfvars.example
+
+# plan の出力ファイル
+tfplan
+tfplan.txt
+
+# クラッシュログ
+crash.log
+crash.*.log
+
+# .terraform.lock.hcl はプロバイダのバージョン固定のためコミット推奨(意図的に無視しない)

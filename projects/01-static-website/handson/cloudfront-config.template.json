@@ -1,0 +1,60 @@
+{
+  "CallerReference": "CALLER_REFERENCE",
+  "Comment": "Portfolio static website (S3 + OAC)",
+  "Enabled": true,
+  "DefaultRootObject": "index.html",
+  "Aliases": {
+    "Quantity": 0
+  },
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-BUCKET_NAME",
+        "DomainName": "BUCKET_NAME.s3.REGION.amazonaws.com",
+        "OriginAccessControlId": "OAC_ID",
+        "S3OriginConfig": {
+          "OriginAccessIdentity": ""
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-BUCKET_NAME",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "Compress": true,
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  },
+  "CustomErrorResponses": {
+    "Quantity": 2,
+    "Items": [
+      {
+        "ErrorCode": 403,
+        "ResponsePagePath": "/error.html",
+        "ResponseCode": "404",
+        "ErrorCachingMinTTL": 10
+      },
+      {
+        "ErrorCode": 404,
+        "ResponsePagePath": "/error.html",
+        "ResponseCode": "404",
+        "ErrorCachingMinTTL": 10
+      }
+    ]
+  },
+  "PriceClass": "PriceClass_All",
+  "ViewerCertificate": {
+    "CloudFrontDefaultCertificate": true,
+    "MinimumProtocolVersion": "TLSv1"
+  },
+  "HttpVersion": "http2",
+  "IsIPV6Enabled": true
+}

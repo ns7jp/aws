@@ -1,0 +1,5 @@
+# SSH秘密鍵は絶対にコミットしない
+*.pem
+
+# build.sh が生成する作成済みリソースIDの記録ファイル
+.handson-state.env
