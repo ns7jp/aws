@@ -58,6 +58,15 @@ flowchart LR
 
 > ⚠️ **必ず読んでください**: キットは実AWS環境での動作検証を行っていません(構文チェックのみ)。実行前に各 `handson/README.md` と [コスト管理ガイド](docs/03-cost-management.md) を読み、予算アラートを設定し、検証後は `cleanup.sh` / `terraform destroy` で必ず削除してください。
 
+## 構築証跡と自動検証
+
+- **[evidence/](evidence/README.md)**: キットを実際のAWSアカウントで実行した記録(所要時間・費用・スクリーンショット・つまずきと解決)を残す場所です。テンプレート [evidence/templates/handson-record.md](evidence/templates/handson-record.md) をコピーして使います。「本当に手を動かした」ことを示す、面接で最も効く材料です。
+- **[scripts/validate.sh](scripts/validate.sh)**: シェル構文・shellcheck・JSON/YAML・Markdownリンク・Terraform fmt をまとめて検証します。GitHub Actions([.github/workflows/validate.yml](.github/workflows/validate.yml))で push のたびに自動実行され、実AWS環境には接続しません。
+
+```bash
+./scripts/validate.sh   # ローカルでも同じチェックを実行できます
+```
+
 ## 読み方ガイド
 
 1. **AWSにまだ慣れていない方は** まず [docs/01-aws-basics-for-beginners.md](docs/01-aws-basics-for-beginners.md) で全体像をつかんでから、レベル1から順番に読み進めてください。

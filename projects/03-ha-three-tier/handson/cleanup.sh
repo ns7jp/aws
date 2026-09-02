@@ -105,7 +105,7 @@ delete_rt() {
   local rt_id="$1"
   # 明示的な関連付けをすべて解除
   for assoc in $(aws ec2 describe-route-tables --route-table-ids "$rt_id" \
-      --query 'RouteTables[0].Associations[?Main==`false`].RouteTableAssociationId' \
+      --query 'RouteTables[0].Associations[?!Main].RouteTableAssociationId' \
       --output text 2>/dev/null); do
     aws ec2 disassociate-route-table --association-id "$assoc" || true
   done
