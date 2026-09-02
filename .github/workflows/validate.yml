@@ -1,0 +1,39 @@
+name: validate
+
+# push / pull request のたびに、リポジトリ内のスクリプト・設定ファイル・ドキュメントを
+# 静的に検証します(実AWS環境には接続しません。課金は発生しません)。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck and PyYAML
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck python3-yaml
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Run validate.sh
+        run: |
+          chmod +x scripts/validate.sh
+          ./scripts/validate.sh
+
+      - name: terraform validate (level 6 kit, no AWS access)
+        working-directory: projects/06-iac-cicd/handson/environments/dev
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
