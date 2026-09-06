@@ -70,7 +70,7 @@ flowchart LR
 ## 読み方ガイド
 
 1. **AWSにまだ慣れていない方は** まず [docs/01-aws-basics-for-beginners.md](docs/01-aws-basics-for-beginners.md) で全体像をつかんでから、レベル1から順番に読み進めてください。
-2. **各案件の中で知らない用語が出てきたら** [docs/02-glossary.md](docs/02-glossary.md) を辞書として参照してください。すべての案件からリンクしています。
+2. **各案件の中で知らない用語が出てきたら** [docs/02-glossary.md](docs/02-glossary.md) を辞書として参照してください。すべての案件からリンクしています。索引から、1用語ごとに「なぜ必要か・どこでハマるか」まで掘り下げた[詳細用語集(全10章・478項目)](docs/glossary/01-cloud-basics.md)へ飛べます。
 3. **手を動かして検証する場合は** 必ず [docs/03-cost-management.md](docs/03-cost-management.md) の無料利用枠・削除チェックリストを先に確認してから進めてください(課金事故防止)。
 4. **採用担当者・面接官の方へ**: 各案件のREADMEには構成図・構築手順に加えて「セキュリティのポイント」「コスト概算」「面接でのアピールポイント」まで記載しています。特に各案件末尾の想定Q&Aから読んでいただくと、設計意図が伝わりやすいかと思います。
 
@@ -79,7 +79,8 @@ flowchart LR
 | ドキュメント | 内容 |
 |---|---|
 | [AWS基礎知識(超入門)](docs/01-aws-basics-for-beginners.md) | クラウドとは何か、リージョン/AZ、サービスカテゴリの全体像 |
-| [AWS用語集(覚え方付き)](docs/02-glossary.md) | 全案件に登場する用語を1箇所に整理した辞書、混同しやすい用語の比較表 |
+| [AWS用語集(覚え方付き)](docs/02-glossary.md) | **用語集のトップ(索引)**。全478項目のアイウエオ順索引、カテゴリ別ひとこと早見表、混同しやすい用語の比較表、ミニハンズオン |
+| [詳細用語集 全10章](docs/glossary/01-cloud-basics.md) | 1用語ごとに「正式名称/読み方/重要度/たとえるなら/もう少し詳しく/サーバー構築での勘所/よくあるつまずき/コスト/関連用語」まで解説。Linux・サーバー運用の基礎と全50問の総まとめテストも収録 |
 | [コスト管理と無料利用枠ガイド](docs/03-cost-management.md) | 無料利用枠の考え方、課金事故を防ぐ削除チェックリスト、各案件の費用概算まとめ |
 | [このポートフォリオの面接での伝え方](docs/04-interview-prep.md) | 自己紹介テンプレート、案件ごとのエレベーターピッチ、想定質問と回答の型 |
 
@@ -100,5 +101,8 @@ flowchart LR
 ## 関連ドキュメント
 
 - [AWS基礎知識(超入門)](docs/01-aws-basics-for-beginners.md)
-- [AWS用語集(覚え方付き)](docs/02-glossary.md)
+- [AWS用語集(覚え方付き・索引)](docs/02-glossary.md)
+- [詳細用語集 ②ネットワーク編(最重要)](docs/glossary/02-network.md)
+- [詳細用語集 ⑨Linux・サーバー運用の基礎](docs/glossary/09-linux-server-basics.md)
+- [詳細用語集 ⑩略語一覧と総まとめテスト(全50問)](docs/glossary/10-abbreviations-and-quiz.md)
 - [最初の案件(レベル1: 静的Webサイト公開)](projects/01-static-website/README.md)
