@@ -165,11 +165,13 @@ AWSには、一定の範囲内であれば無料で利用できる**無料利用
 
 ## この後どう読み進めるか
 
-準備は整いました。次は用語でつまずいたときに立ち返るための [docs/02-glossary.md](02-glossary.md)(用語集)を軽く眺めてから、[projects/01-static-website/README.md](../projects/01-static-website/README.md)(レベル1: 静的Webサイト公開環境の構築)から順番に読み進めることをおすすめします。各案件のREADMEでも、初出の専門用語にはその都度この基礎知識を補う説明を入れていますので、わからない言葉が出てきても安心して読み進めてください。
+準備は整いました。次は用語でつまずいたときに立ち返るための [docs/02-glossary.md](02-glossary.md)(用語集の索引。全478項目の[詳細用語集](glossary/01-cloud-basics.md)への入口でもあります)を軽く眺めてから、[projects/01-static-website/README.md](../projects/01-static-website/README.md)(レベル1: 静的Webサイト公開環境の構築)から順番に読み進めることをおすすめします。各案件のREADMEでも、初出の専門用語にはその都度この基礎知識を補う説明を入れていますので、わからない言葉が出てきても安心して読み進めてください。
 
 ## 関連ドキュメント
 
 - [ポートフォリオ全体トップ](../README.md)
-- [用語集](02-glossary.md)
+- [用語集(索引)](02-glossary.md)
+- [詳細用語集 ①クラウドとAWSアカウントの基礎(この章の続き)](glossary/01-cloud-basics.md)
+- [詳細用語集 ②ネットワーク](glossary/02-network.md)
 - [コスト管理ガイド](03-cost-management.md)
 - [最初の案件(レベル1: 静的Webサイト公開環境の構築)](../projects/01-static-website/README.md)
