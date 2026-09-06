@@ -16,7 +16,7 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 
 | 略語 | 読み方 | 正式名称 | 日本語での意味 | 詳しい説明 |
 |---|---|---|---|---|
-| ACM | エーシーエム | AWS Certificate Manager | HTTPS用のSSL/TLS証明書を無料で発行し、自動更新してくれるサービス | [⑥セキュリティ](06-security-identity.md#acm) |
+| ACM | エーシーエム | AWS Certificate Manager | HTTPS用のパブリック証明書を無料で発行し、条件を満たせば自動更新してくれるサービス(外部で取得してインポートした証明書は自動更新の対象外。プライベート認証機関は有料) | [⑥セキュリティ](06-security-identity.md#acm) |
 | ALB | エーエルビー | Application Load Balancer | HTTP/HTTPSの中身を見て振り分けるロードバランサー | [②ネットワーク](02-network.md#alb) |
 | AMI | エーエムアイ | Amazon Machine Image | EC2を起動するためのOS入りひな形イメージ | [③コンピューティング](03-compute.md#ami) |
 | API | エーピーアイ | Application Programming Interface | ソフトウェア同士がやり取りするための決められた窓口 | [①クラウド基礎](01-cloud-basics.md#api) |
@@ -75,7 +75,7 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 | NTP | エヌティーピー | Network Time Protocol | ネットワーク越しにサーバーの時計を正確に合わせる仕組み | [⑨Linux](09-linux-server-basics.md#ntp) |
 | OAC | オーエーシー | Origin Access Control | CloudFrontだけがS3を読めるようにする現行の仕組み | [②ネットワーク](02-network.md#oac) |
 | OAI | オーエーアイ | Origin Access Identity | OACの前身にあたる旧方式 | [②ネットワーク](02-network.md#oai) |
-| OIDC | オーアイディーシー | OpenID Connect | 長期のアクセスキーを置かずに一時認証情報を得る連携方式 | [⑧IaCとCI/CD](08-iac-cicd.md#oidc) |
+| OIDC | オーアイディーシー | OpenID Connect | OAuth 2.0を土台にした「相手が誰かを確かめる」ための認証の標準規格。AWSではこれをIDプロバイダーとして信頼し、長期のアクセスキーを置かずに一時認証情報を得る用途で使う | [⑧IaCとCI/CD](08-iac-cicd.md#oidc) |
 | OS | オーエス | Operating System | ハードウェアとアプリの橋渡しをする基本ソフト。サーバーではLinuxが主流 | [⑨Linux](09-linux-server-basics.md#linux) |
 | PaaS | パース | Platform as a Service | OSやミドルウェアまで用意された「土台」を借りる形態 | [①クラウド基礎](01-cloud-basics.md#paas) |
 | PHP | ピーエイチピー | PHP: Hypertext Preprocessor | WordPressなどWebアプリで広く使われるプログラミング言語 | [⑨Linux](09-linux-server-basics.md#php) |
@@ -129,20 +129,21 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 
 | 用語A | 用語B | 一番の違い | 覚え方 |
 |---|---|---|---|
+| [責任共有モデル](01-cloud-basics.md#責任共有モデル)のAWS側 | 利用者側 | AWSは「クラウド**そのもの**」(データセンター・ハードウェア・仮想化基盤)、利用者は「クラウド**の中**」(OSのパッチ適用・SG設定・IAM設計・データの暗号化)。境界線はサービスによって動き、EC2では利用者の責任が広く、S3やLambdaでは狭くなる | 「建物の管理会社」と「部屋の住人」 |
 | [セキュリティグループ](02-network.md#セキュリティグループ) | [ネットワークACL](02-network.md#ネットワークacl) | SGはリソース単位でステートフル(戻りは自動許可)、NACLはサブネット単位でステートレス(戻りも明示的に許可が必要)。SGは許可のみ、NACLは拒否も書ける | SGは「個人のIDカード」、NACLは「フロア入口の警備員」 |
-| [Multi-AZ](05-database.md#multi-az) | [リードレプリカ](05-database.md#リードレプリカ) | Multi-AZは可用性のための待機系(同期・アクセス不可)、リードレプリカは性能のための読み取り用複製(非同期・アクセス可) | 「控えの金庫室」と「閲覧用の写し」 |
+| [Multi-AZ](05-database.md#multi-az) | [リードレプリカ](05-database.md#リードレプリカ) | Multi-AZ(DBインスタンス配置)は可用性のための待機系(同期・通常はアクセス不可。読み取り可能なスタンバイを2台持つ「マルチAZ DBクラスター配置」は別方式)、リードレプリカは性能のための読み取り用複製(非同期・アクセス可) | 「控えの金庫室」と「閲覧用の写し」 |
 | [IAMユーザー](06-security-identity.md#iamユーザー) | [IAMロール](06-security-identity.md#iamロール) | ユーザーは人に紐づく恒久的な身分証、ロールは誰でも一時的に借りられる期限付きの身分証 | 「社員証」と「来客用の一時入館証」 |
 | [スケールアップ](01-cloud-basics.md#スケールアップ) | [スケールアウト](01-cloud-basics.md#スケールアウト) | アップは1台の性能を大きくする(垂直)、アウトは台数を増やす(水平) | 「部屋を広くする」と「部屋を増やす」 |
 | [ALB](02-network.md#alb) | [NLB](02-network.md#nlb) | ALBはHTTP/HTTPSの中身(パス・ホスト名)を見て振り分ける、NLBはTCP/UDPをそのまま超高速でさばく | 「中身を読む受付」と「そのまま通す交通整理」 |
 | [EBS](04-storage.md#ebs) | [S3](04-storage.md#s3) | EBSはEC2に取り付けて「ドライブ」として見えるブロックストレージ、S3はHTTP経由で預けるオブジェクトストレージ | 「部屋の作り付け収納」と「外にある貸倉庫」 |
-| [EBS](04-storage.md#ebs) | [インスタンスストア](03-compute.md#インスタンスストア) | EBSはネットワーク接続型で停止しても残る、インスタンスストアは物理ホスト直結で終了・停止すると消える | 「持ち出せる収納」と「部屋を出たら捨てられる備品」 |
+| [EBS](04-storage.md#ebs) | [インスタンスストア](03-compute.md#インスタンスストア) | EBSはネットワーク接続型で**インスタンスを停止しても残る**(ただしルートボリュームは既定で `DeleteOnTermination` が有効なので、**終了**すると一緒に消える)、インスタンスストアは物理ホスト直結で停止・終了のどちらでも消える | 「持ち出せる収納」と「部屋を出たら捨てられる備品」 |
 | [同期レプリケーション](05-database.md#同期レプリケーション) | [非同期レプリケーション](05-database.md#非同期レプリケーション) | 同期は複製先の書き込み完了を待つ(遅れゼロだが遅い)、非同期は待たない(速いが遅れが出る) | 「相手の受領印を待つ」と「投函したら次の仕事へ」 |
 | [RTO](01-cloud-basics.md#rto) | [RPO](01-cloud-basics.md#rpo) | RTOは「復旧までの時間」の目標、RPOは「失ってよいデータの時間幅」の目標 | RTOのTはTime(時間)、RPOのPはPoint(どの時点まで戻せるか) |
 | [CloudTrail](06-security-identity.md#cloudtrail) | [CloudWatch Logs](07-monitoring-operations.md#cloudwatch-logs) | CloudTrailは「誰がAWSを操作したか」の証跡、CloudWatch Logsはサーバーやアプリが出したログの置き場 | 「防犯カメラの録画」と「各部屋の業務日誌」 |
 | [CloudWatch](07-monitoring-operations.md#cloudwatch) | [AWS Config](06-security-identity.md#aws-config) | CloudWatchは動作状況(数値・ログ)を監視、Configはリソースの設定内容が正しいかを評価・記録 | 「体温計」と「持ち物検査の点検簿」 |
-| [インバウンド](02-network.md#インバウンド) | [アウトバウンド](02-network.md#アウトバウンド) | インバウンドは外から中へ入る通信、アウトバウンドは中から外へ出る通信 | 「来客」と「外出」。SGの既定はインバウンド全拒否・アウトバウンド全許可 |
+| [インバウンド](02-network.md#インバウンド) | [アウトバウンド](02-network.md#アウトバウンド) | インバウンドは外から中へ入る通信、アウトバウンドは中から外へ出る通信 | 「来客」と「外出」。**新規作成したSG**の既定はインバウンド全拒否・アウトバウンド全許可(VPCのデフォルトSGだけは例外で、同じSGが付いたリソースからのインバウンドが最初から許可されています) |
 | [パブリックサブネット](02-network.md#パブリックサブネット) | [プライベートサブネット](02-network.md#プライベートサブネット) | 違いはサブネット自体の種類ではなく、[ルートテーブル](02-network.md#ルートテーブル)に `0.0.0.0/0` → IGWの経路があるかどうか | 「道路に面した棟」と「奥の事務所棟」。玄関につながる廊下があるかで決まる |
-| [インターネットゲートウェイ](02-network.md#インターネットゲートウェイ) | [NATゲートウェイ](02-network.md#natゲートウェイ) | IGWは双方向の出入口(VPCに1つ)、NATゲートウェイは中から外への片道専用(サブネットに配置し課金される) | 「正面玄関」と「外向き専用の通用口」 |
+| [インターネットゲートウェイ](02-network.md#インターネットゲートウェイ) | [NATゲートウェイ](02-network.md#natゲートウェイ) | IGWは双方向の出入口(VPCに1つ)、NATゲートウェイは中から外への片道専用(**パブリックサブネットに置き**、プライベートサブネットのルートテーブルから向ける。時間課金+処理データ量課金) | 「正面玄関」と「外向き専用の通用口(通用口自体は表通り側=パブリックサブネットに付ける)」 |
 | 認証 | 認可 | 認証は「あなたが誰か」を確かめること、認可は「その人に何を許すか」を決めること | 認証は[MFA](06-security-identity.md#mfa)、認可は[IAMポリシー](06-security-identity.md#iamポリシー)。IDカードを見せるのが認証、開く扉が決まるのが認可 |
 | [ステートフル](02-network.md#ステートフル) | [ステートレス](02-network.md#ステートレス) | ステートフルは状態を覚えている、ステートレスは1回ごとに独立している | SGはステートフル、NACLはステートレス。サーバー設計では[ステートレス](03-compute.md#ステートレス)が正義 |
 | [オンデマンド](01-cloud-basics.md#オンデマンド) | [リザーブドインスタンス](01-cloud-basics.md#リザーブドインスタンス) | オンデマンドは契約なしの定価、RIは1年・3年の利用を約束して割引を受ける | 「都度払い」と「年間パスポート」。学習中は必ずオンデマンド |
@@ -152,7 +153,7 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 | [terraform plan](08-iac-cicd.md#terraform-plan) | [terraform apply](08-iac-cicd.md#terraform-apply) | planは差分を見るだけ(何も変えない)、applyは実際にAWSへ反映する | 「見積書」と「着工」。planを読まないapplyは事故のもと |
 | [ブルーグリーンデプロイ](08-iac-cicd.md#ブルーグリーンデプロイ) | [カナリアリリース](08-iac-cicd.md#カナリアリリース) | ブルーグリーンは新旧2環境を用意して一気に切り替える、カナリアは一部の利用者にだけ先に出して様子を見る | 「引っ越し」と「試食販売」 |
 | [ローリングアップデート](08-iac-cicd.md#ローリングアップデート) | [ブルーグリーンデプロイ](08-iac-cicd.md#ブルーグリーンデプロイ) | ローリングは同じ環境の中で少しずつ入れ替える、ブルーグリーンは環境ごと用意して切り替える | 「1部屋ずつ改装」と「隣に新築して引っ越す」 |
-| [自動バックアップ](05-database.md#自動バックアップ) | [DBスナップショット](05-database.md#dbスナップショット) | 自動バックアップは保持期間が過ぎると消え、DBインスタンス削除で失われる。手動スナップショットは明示的に消すまで残る | 「自動で撮って自動で捨てる写真」と「アルバムに貼った写真」 |
+| [自動バックアップ](05-database.md#自動バックアップ) | [DBスナップショット](05-database.md#dbスナップショット) | 自動バックアップは保持期間が過ぎると消え、DBインスタンス削除時も**既定では**失われる(削除時に「自動バックアップを保持」を選べば保持期間内は残せます)。手動スナップショットは明示的に消すまで残る | 「自動で撮って自動で捨てる写真」と「アルバムに貼った写真」 |
 | [SNS](07-monitoring-operations.md#sns) | [SQS](07-monitoring-operations.md#sqs) | SNSは1件を複数の宛先へ同時に配る同報(プッシュ型)、SQSは貯めておいて受け手が取りに来る(プル型) | 「館内一斉放送」と「順番待ちの行列」 |
 | [宣言型](08-iac-cicd.md#宣言型) | 手続き型 | 宣言型は「あるべき最終形」を書く、手続き型は「手順」を書く | 「完成図を渡す」と「作り方を1手順ずつ指示する」。IaCは宣言型 |
 | [Fargate](03-compute.md#fargate) | [EC2](03-compute.md#ec2) | Fargateはコンテナだけ動かせばよくホストの管理が不要、EC2はOSから自分で面倒を見る | 「調理器具ごと借りる」と「厨房を借りて自分で揃える」 |
@@ -176,14 +177,14 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 12. 世界中から速く見せるため、前段に**[CloudFront](02-network.md#cloudfront)**を置き、**[OAC](02-network.md#oac)**でS3を非公開のまま読ませます。名前は**[Route 53](02-network.md#route-53)**の**[エイリアスレコード](02-network.md#エイリアスレコード)**で結び、**[ACM](06-security-identity.md#acm)**の証明書で**[HTTPS](02-network.md#https)**にします。
 13. 動き出したら見張ります。**[CloudWatch](07-monitoring-operations.md#cloudwatch)**の**[メトリクス](07-monitoring-operations.md#メトリクス)**に**[しきい値](07-monitoring-operations.md#しきい値)**を決めて**[CloudWatchアラーム](07-monitoring-operations.md#cloudwatchアラーム)**を作り、鳴ったら**[SNS](07-monitoring-operations.md#sns)**がメールで人を呼びます。
 14. 守りも重ねます。入口に**[AWS WAF](06-security-identity.md#aws-waf)**、操作の記録に**[CloudTrail](06-security-identity.md#cloudtrail)**、設定の点検に**[AWS Config](06-security-identity.md#aws-config)**、脅威検知に**[GuardDuty](06-security-identity.md#guardduty)**。パスワードは**[Secrets Manager](06-security-identity.md#secrets-manager)**に預け、EC2には**[IAMロール](06-security-identity.md#iamロール)**を渡してアクセスキーは置きません。これが**[多層防御](06-security-identity.md#多層防御)**です。
-15. 消えたら困るものは**[AWS Backup](04-storage.md#aws-backup)**で毎日取り、**[保持期間](04-storage.md#保持期間)**を決めます。ここで決めた間隔が、そのまま**[RPO](01-cloud-basics.md#rpo)**になります。
+15. 消えたら困るものは**[AWS Backup](04-storage.md#aws-backup)**で毎日取り、**[保持期間](04-storage.md#保持期間)**を決めます。順番は逆で、先に業務側で決めた**[RPO](01-cloud-basics.md#rpo)**(失ってよいデータの時間幅)が、そのままバックアップ間隔の上限になります。日次バックアップなら最悪24時間ぶんのデータを失う、という関係です。
 16. 最後に、ここまでの全部を**[Terraform](08-iac-cicd.md#terraform)**の**[HCL](08-iac-cicd.md#hcl)**で書き直し、**[tfstate](08-iac-cicd.md#tfstate)**をS3に置き、**[プルリクエスト](08-iac-cicd.md#プルリクエスト)**でレビューし、**[terraform plan](08-iac-cicd.md#terraform-plan)**の結果に**[手動承認](08-iac-cicd.md#手動承認)**のハンコを押してから**[terraform apply](08-iac-cicd.md#terraform-apply)**する。ここまで来て、ようやく「**[IaC](08-iac-cicd.md#iac)**で運用している」と言えます。
 
 > 🧠 **覚え方のコツ**: この物語は「**契約 → 敷地 → 部屋 → 扉 → 台数 → 受付 → 金庫 → 倉庫 → 出張所 → 見張り → 守り → 控え → 設計図**」の13段です。面接で構成を説明するときも、この順番でしゃべれば話が飛びません。
 
-## 4. 総まとめテスト(全50問)
+## 4. 総まとめテスト(全55問)
 
-紙に答えを書いてから照合すると定着します。答えを見て「知っている」と思っても、**声に出して1〜2文で言えるか**を必ず確かめてください。
+紙に答えを書いてから照合すると定着します。答えを見て「知っている」と思っても、**声に出して1〜2文で言えるか**を必ず確かめてください。内訳は初級20問・中級25問・上級10問の全55問です。
 
 ### 4-1. 初級(20問)
 
@@ -212,6 +213,8 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 
 ### 4-2. 中級(20問)
 
+見出しのAWS20問(#21〜#40)に加えて、⑨Linux・サーバー運用と①責任共有モデルからの5問(#41〜#45)を末尾に置いています。この節は合計25問です。
+
 | # | 問題 | 答え |
 |---|---|---|
 | 21 | セキュリティグループとネットワークACLはどう使い分けますか | 通常の許可設定は[セキュリティグループ](02-network.md#セキュリティグループ)で行い、[ネットワークACL](02-network.md#ネットワークacl)は「特定IPをサブネット全体で拒否したい」など、拒否が必要な場面の補助として使います |
@@ -222,7 +225,7 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 | 26 | CloudFrontで使うACM証明書のリージョン制約は何ですか | バージニア北部(`us-east-1`)で発行した[ACM](06-security-identity.md#acm)証明書である必要があります。ALB用は同一リージョンで発行します |
 | 27 | 請求額のアラームを作るとき注意すべきリージョンはどこですか | バージニア北部(`us-east-1`)です。[EstimatedCharges](07-monitoring-operations.md#estimatedcharges)はそこにしか存在しません |
 | 28 | Auto Scaling Groupのヘルスチェックタイプを `ELB` にする理由は何ですか | EC2チェックだけではOSが生きていれば「正常」と判定され、Webサーバーが停止していても入れ替わらないためです。[ヘルスチェックタイプ](03-compute.md#ヘルスチェックタイプ)をELBにすると応答内容で判定できます |
-| 29 | EBSとインスタンスストアの決定的な違いは何ですか | [EBS](04-storage.md#ebs)は停止しても内容が残るネットワーク接続型、[インスタンスストア](03-compute.md#インスタンスストア)は物理ホスト直結で停止・終了すると消えます |
+| 29 | EBSとインスタンスストアの決定的な違いは何ですか | [EBS](04-storage.md#ebs)はインスタンスを停止しても内容が残るネットワーク接続型、[インスタンスストア](03-compute.md#インスタンスストア)は物理ホスト直結で停止・終了のどちらでも消えます。ただしEBSでも、ルートボリュームは既定で `DeleteOnTermination` が有効なため、インスタンスを**終了**すると一緒に削除される点に注意してください |
 | 30 | EBSスナップショットは毎回フルバックアップですか | いいえ。2回目以降は変更分だけを保存する[増分バックアップ](04-storage.md#増分バックアップ)です。ただし復元は常にその時点の完全な状態に戻せます |
 | 31 | S3のバージョニングを有効にすると何が変わりますか | 上書き・削除しても旧世代が残ります([バージョニング](04-storage.md#バージョニング))。誤削除に強くなる一方、旧世代も課金対象になるため[ライフサイクルルール](04-storage.md#ライフサイクルルール)での整理が要ります |
 | 32 | RDSの自動バックアップとDBスナップショットの違いは何ですか | [自動バックアップ](05-database.md#自動バックアップ)は保持期間が過ぎると消え、DBインスタンス削除時に原則失われます。手動の[DBスナップショット](05-database.md#dbスナップショット)は明示的に削除するまで残ります |
@@ -234,6 +237,11 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 | 38 | tfstateをS3に置き、ロックを併用する理由は何ですか | 複数人・複数実行で[tfstate](08-iac-cicd.md#tfstate)が壊れるのを防ぐためです。[バックエンド](08-iac-cicd.md#バックエンド)で共有し、[ステートロック](08-iac-cicd.md#ステートロック)で同時実行を排他制御します |
 | 39 | `terraform plan` と `terraform apply` の違いは何ですか | [terraform plan](08-iac-cicd.md#terraform-plan)は差分を表示するだけで環境を変更せず、[terraform apply](08-iac-cicd.md#terraform-apply)が実際に反映します |
 | 40 | ドリフトとは何で、どうやって気づきますか | コードの定義と実環境のズレのことです([ドリフト](08-iac-cicd.md#ドリフト))。次回の `terraform plan` に意図しない差分として現れるので、定期的にplanを回して検知します |
+| 41 | Apacheを起動し、OSを再起動しても自動で立ち上がるようにするコマンドは何ですか | `sudo systemctl start httpd` と `sudo systemctl enable httpd` の2つです([systemctl](09-linux-server-basics.md#systemctl))。`sudo systemctl enable --now httpd` と書けば1行で両方を行えます。Amazon Linuxではサービス名が `apache` ではなく `httpd` です |
+| 42 | サービスが起動しない原因を調べるとき、最初に見るのはどこですか | `systemctl status <サービス名>` の出力と、[journalctl](09-linux-server-basics.md#journalctl)(`journalctl -xeu <サービス名>` など)のログです。Apacheであれば `/var/log/httpd/error_log` も併せて確認します |
+| 43 | サーバーが80番ポートでリッスンしているかを確認するコマンドは何ですか | `sudo ss -lntp` です([ss](09-linux-server-basics.md#ss))。`0.0.0.0:80` なら外部からの接続を受け付け、`127.0.0.1:80` ならサーバー自身からしか接続できない状態だと読み取れます |
+| 44 | Apacheの既定のドキュメントルートはどこで、ファイルを置くときは何に気をつけますか | Amazon LinuxのApacheでは `/var/www/html` です([ドキュメントルート](09-linux-server-basics.md#ドキュメントルート))。書き込みには[sudo](09-linux-server-basics.md#sudo)が必要で、[パーミッション](09-linux-server-basics.md#パーミッション)は「ディレクトリ755・ファイル644」が基本形です。設定ファイルやバックアップをここに置くとURL経由で読まれてしまうため置きません |
+| 45 | AWSと利用者の責任分担の考え方を何と呼び、OSのパッチ適用はどちらの責任ですか | [責任共有モデル](01-cloud-basics.md#責任共有モデル)です。AWSは「クラウドそのもの」(データセンター・ハードウェア・仮想化基盤)、利用者は「クラウドの中」(OSのパッチ適用・SG設定・IAM設計・データの暗号化)を守ります。EC2のOSパッチは利用者の責任です |
 
 ### 4-3. 上級・面接想定(10問)
 
@@ -241,16 +249,16 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 
 | # | 問題 | 答え |
 |---|---|---|
-| 41 | なぜデータベースをプライベートサブネットに置いたのですか | インターネットから直接到達できる経路をなくし、[攻撃対象領域](06-security-identity.md#攻撃対象領域)を減らすためです。DBはアプリ層からしかアクセスされないので公開する必要がなく、[セキュリティグループ](02-network.md#セキュリティグループ)もWeb層のSGからの3306番のみに絞れます |
-| 42 | なぜEC2にアクセスキーを置かず、IAMロールを使ったのですか | [アクセスキー](06-security-identity.md#アクセスキー)は長期の認証情報で、サーバー内に置くと漏えい時の被害が大きく、ローテーションも人手になるためです。[IAMロール](06-security-identity.md#iamロール)なら[AWS STS](06-security-identity.md#aws-sts)が短期の認証情報を自動更新してくれます |
-| 43 | Multi-AZを組んでいるのに、なぜバックアップも必要なのですか | [Multi-AZ](05-database.md#multi-az)は同期複製なので、誤って削除したデータも即座に複製先へ反映されます。守れるのはAZ障害であって、人的ミスや論理破壊ではありません。そこは[自動バックアップ](05-database.md#自動バックアップ)と[ポイントインタイムリカバリ](05-database.md#ポイントインタイムリカバリ)の役割です |
-| 44 | なぜ2つ以上のAZに分散させたのですか。コストとのトレードオフはどう考えましたか | 1AZ構成はその[アベイラビリティゾーン](01-cloud-basics.md#アベイラビリティゾーン)が[単一障害点](01-cloud-basics.md#単一障害点)になるためです。トレードオフとして、EC2の台数増とAZごとの[NATゲートウェイ](02-network.md#natゲートウェイ)がコスト要因になります。学習環境ではNATを1つに集約し、本番想定ではAZごとに配置するという判断の分け方を説明できるようにしています |
-| 45 | なぜ22番ポートを開けず、Session Managerを採用したのですか | 22番のインバウンドを一切開けずに済み、秘密鍵の配布・保管も不要になるからです。加えて、誰が接続したかがIAMプリンシパル単位で[CloudTrail](06-security-identity.md#cloudtrail)に記録され、監査に耐えます([Session Manager](07-monitoring-operations.md#session-manager)) |
-| 46 | なぜS3を公開せず、CloudFront+OACという構成にしたのですか | バケットを公開すると、URLを知る全員がオリジンへ直接到達でき、[AWS WAF](06-security-identity.md#aws-waf)や[署名付きURL](02-network.md#署名付きurl)といった前段の制御をすべて迂回されるためです。[OAC](02-network.md#oac)なら[ブロックパブリックアクセス](04-storage.md#ブロックパブリックアクセス)を有効のまま、CloudFrontだけに読ませられます |
-| 47 | 手作業で作れるのに、なぜIaC化したのですか | 再現性・レビュー可能性・変更履歴の3つを得るためです([IaC](08-iac-cicd.md#iac))。特に「なぜこの設定にしたか」が[コミット](08-iac-cicd.md#コミット)と[プルリクエスト](08-iac-cicd.md#プルリクエスト)に残ることが、障害調査と引き継ぎで効きます。一方で設計の仕事自体は減らない、という点も併せて説明します |
-| 48 | CI/CDを組んだのに、なぜ手動承認ステージを残したのですか | インフラの変更は取り返しがつかない操作(DBの再作成やリソース削除)を含みうるためです。[terraform plan](08-iac-cicd.md#terraform-plan)の結果を人が読み、[手動承認](08-iac-cicd.md#手動承認)を経てから[terraform apply](08-iac-cicd.md#terraform-apply)する形にして、自動化の速さと安全性の折り合いを付けています |
-| 49 | なぜ設計の最初にRTOとRPOを決めるのですか | [RTO](01-cloud-basics.md#rto)と[RPO](01-cloud-basics.md#rpo)が決まらないと、Multi-AZが要るのか、バックアップは日次でよいのか、[ディザスタリカバリ](01-cloud-basics.md#ディザスタリカバリ)まで必要なのかが決められないからです。可用性の水準は技術ではなく業務要件から決まる、という順番を守るためです |
-| 50 | この構成のまま本番運用に入ると、足りないものは何だと思いますか | 代表的には、(1)アプリ層のログ集約と[オブザーバビリティ](07-monitoring-operations.md#オブザーバビリティ)の不足、(2)障害時の[ランブック](07-monitoring-operations.md#ランブック)と[オンコール](07-monitoring-operations.md#オンコール)体制の未整備、(3)復旧手順を実際に試すリストア訓練の未実施、(4)アカウント分離([環境分離](08-iac-cicd.md#環境分離))と[サービスコントロールポリシー](06-security-identity.md#サービスコントロールポリシー)によるガードレールの不足です。「作れる」と「運用し続けられる」は別だと理解している、と示せる回答にします |
+| 46 | なぜデータベースをプライベートサブネットに置いたのですか | インターネットから直接到達できる経路をなくし、[攻撃対象領域](06-security-identity.md#攻撃対象領域)を減らすためです。DBはアプリ層からしかアクセスされないので公開する必要がなく、[セキュリティグループ](02-network.md#セキュリティグループ)もWeb層のSGからの3306番のみに絞れます |
+| 47 | なぜEC2にアクセスキーを置かず、IAMロールを使ったのですか | [アクセスキー](06-security-identity.md#アクセスキー)は長期の認証情報で、サーバー内に置くと漏えい時の被害が大きく、ローテーションも人手になるためです。[IAMロール](06-security-identity.md#iamロール)なら[AWS STS](06-security-identity.md#aws-sts)が短期の認証情報を自動更新してくれます |
+| 48 | Multi-AZを組んでいるのに、なぜバックアップも必要なのですか | [Multi-AZ](05-database.md#multi-az)は同期複製なので、誤って削除したデータも即座に複製先へ反映されます。守れるのはAZ障害であって、人的ミスや論理破壊ではありません。そこは[自動バックアップ](05-database.md#自動バックアップ)と[ポイントインタイムリカバリ](05-database.md#ポイントインタイムリカバリ)の役割です |
+| 49 | なぜ2つ以上のAZに分散させたのですか。コストとのトレードオフはどう考えましたか | 1AZ構成はその[アベイラビリティゾーン](01-cloud-basics.md#アベイラビリティゾーン)が[単一障害点](01-cloud-basics.md#単一障害点)になるためです。トレードオフとして、EC2の台数増とAZごとの[NATゲートウェイ](02-network.md#natゲートウェイ)がコスト要因になります。学習環境ではNATを1つに集約し、本番想定ではAZごとに配置するという判断の分け方を説明できるようにしています |
+| 50 | なぜ22番ポートを開けず、Session Managerを採用したのですか | 22番のインバウンドを一切開けずに済み、秘密鍵の配布・保管も不要になるからです。加えて、誰が接続したかがIAMプリンシパル単位で[CloudTrail](06-security-identity.md#cloudtrail)に記録され、監査に耐えます([Session Manager](07-monitoring-operations.md#session-manager)) |
+| 51 | なぜS3を公開せず、CloudFront+OACという構成にしたのですか | バケットを公開すると、URLを知る全員がオリジンへ直接到達でき、[AWS WAF](06-security-identity.md#aws-waf)や[署名付きURL](02-network.md#署名付きurl)といった前段の制御をすべて迂回されるためです。[OAC](02-network.md#oac)なら[ブロックパブリックアクセス](04-storage.md#ブロックパブリックアクセス)を有効のまま、CloudFrontだけに読ませられます |
+| 52 | 手作業で作れるのに、なぜIaC化したのですか | 再現性・レビュー可能性・変更履歴の3つを得るためです([IaC](08-iac-cicd.md#iac))。特に「なぜこの設定にしたか」が[コミット](08-iac-cicd.md#コミット)と[プルリクエスト](08-iac-cicd.md#プルリクエスト)に残ることが、障害調査と引き継ぎで効きます。一方で設計の仕事自体は減らない、という点も併せて説明します |
+| 53 | CI/CDを組んだのに、なぜ手動承認ステージを残したのですか | インフラの変更は取り返しがつかない操作(DBの再作成やリソース削除)を含みうるためです。[terraform plan](08-iac-cicd.md#terraform-plan)の結果を人が読み、[手動承認](08-iac-cicd.md#手動承認)を経てから[terraform apply](08-iac-cicd.md#terraform-apply)する形にして、自動化の速さと安全性の折り合いを付けています |
+| 54 | なぜ設計の最初にRTOとRPOを決めるのですか | [RTO](01-cloud-basics.md#rto)と[RPO](01-cloud-basics.md#rpo)が決まらないと、Multi-AZが要るのか、バックアップは日次でよいのか、[ディザスタリカバリ](01-cloud-basics.md#ディザスタリカバリ)まで必要なのかが決められないからです。可用性の水準は技術ではなく業務要件から決まる、という順番を守るためです |
+| 55 | この構成のまま本番運用に入ると、足りないものは何だと思いますか | 代表的には、(1)アプリ層のログ集約と[オブザーバビリティ](07-monitoring-operations.md#オブザーバビリティ)の不足、(2)障害時の[ランブック](07-monitoring-operations.md#ランブック)と[オンコール](07-monitoring-operations.md#オンコール)体制の未整備、(3)復旧手順を実際に試すリストア訓練の未実施、(4)アカウント分離([環境分離](08-iac-cicd.md#環境分離))と[サービスコントロールポリシー](06-security-identity.md#サービスコントロールポリシー)によるガードレールの不足です。「作れる」と「運用し続けられる」は別だと理解している、と示せる回答にします |
 
 ## 5. 学習の進め方(30日ロードマップ)
 
@@ -260,20 +268,32 @@ AWSの現場で飛び交う略語を、AWS固有のものと一般IT用語をま
 |---|---|---|---|
 | 1〜2日目 | [①クラウドとAWSアカウントの基礎](01-cloud-basics.md) | AWSアカウントを作成し、ルートユーザーにMFAを設定。IAMユーザーを作り、請求アラートと[AWS Budgets](01-cloud-basics.md#aws-budgets)を設定する | クラウドとオンプレミスの違い、リージョンとAZの違いを説明できる。課金を見張る仕組みが動いている |
 | 3〜5日目 | [②ネットワーク 2-1〜2-2](02-network.md) | 手元のPCで `dig` と `curl` を試す。[AWS基礎知識(超入門)](../01-aws-basics-for-beginners.md)を通読する | IPアドレス・ポート番号・DNS・HTTPSの関係を図にして説明できる |
-| 6〜9日目 | [②ネットワーク 2-3〜2-5](02-network.md) | [レベル1: 静的Webサイト公開](../../projects/01-static-website/README.md)に着手。S3 + CloudFront + Route 53 + ACMで自分のサイトを公開する | 独自ドメインでHTTPS配信ができ、OACでバケットを非公開に保てる |
-| 10〜13日目 | [③コンピューティング 3-1〜3-2](03-compute.md) + [⑨Linux 9-1〜9-4](09-linux-server-basics.md) | [レベル2: EC2 Webサーバー構築](../../projects/02-ec2-web-server/README.md)。VPCを自作し、EC2にApacheを入れて公開する | VPC・サブネット・IGW・SGを自分で組め、`systemctl` でサービスを起動・自動起動設定できる |
+| 6〜9日目 | [②ネットワーク 2-7〜2-8](02-network.md) | [レベル1: 静的Webサイト公開](../../projects/01-static-website/README.md)に着手。S3 + CloudFront + Route 53 + ACMで自分のサイトを公開する | 独自ドメインでHTTPS配信ができ、OACでバケットを非公開に保てる |
+| 10〜13日目 | [②ネットワーク 2-3〜2-5](02-network.md) + [③コンピューティング 3-1〜3-2](03-compute.md) + [⑨Linux 9-1〜9-4](09-linux-server-basics.md) | [レベル2: EC2 Webサーバー構築](../../projects/02-ec2-web-server/README.md)。VPCを自作し、EC2にApacheを入れて公開する | VPC・サブネット・IGW・SGを自分で組め、`systemctl` でサービスを起動・自動起動設定できる |
 | 14〜16日目 | [⑨Linux 9-5〜9-8](09-linux-server-basics.md) | 同じEC2で `top` `df` `ss` `journalctl` を使い、わざとApacheを止めて復旧させる | 「サイトが見えない」を、サーバー内部かネットワークかに切り分けられる |
 | 17〜19日目 | [②ネットワーク 2-6](02-network.md) + [③コンピューティング 3-3](03-compute.md) | [レベル3: 高可用性3層構成](../../projects/03-ha-three-tier/README.md)の前半。ALBとAuto Scaling Groupを組み、1台落としても表示が続くことを確認する | ALB・ターゲットグループ・ヘルスチェック・ASGの役割を説明できる |
 | 20〜22日目 | [⑤データベース](05-database.md) | レベル3の後半。RDSをMulti-AZで作り、プライベートサブネットに配置してEC2から接続する | Multi-AZとリードレプリカの違い、DBを非公開に置く理由を説明できる |
 | 23〜24日目 | [④ストレージ](04-storage.md) | [レベル4: WordPress本番構成](../../projects/04-wordpress-production/README.md)の前半。画像をS3へオフロードし、AWS Backupで日次バックアップを設定する | EBS・S3・EFSの使い分けと、バックアップの保持期間設計を説明できる |
 | 25〜26日目 | [⑦監視・運用](07-monitoring-operations.md) | レベル4の後半。CloudWatchアラーム3点(EC2のCPU・RDSの空き容量・ALBの5xx)を作り、SNSでメール通知が届くまで確認する | アラームの5項目(名前空間・ディメンション・統計・期間・評価期間)を自分で埋められる |
 | 27〜28日目 | [⑥セキュリティ・ID管理](06-security-identity.md) | [レベル5: セキュリティ・監視基盤](../../projects/05-security-monitoring/README.md)。IAMグループ設計、CloudTrail・Config・GuardDuty・WAFを有効化する | 最小権限の原則と多層防御を、自分の構成に即して説明できる |
-| 29〜30日目 | [⑧IaCとCI/CD](08-iac-cicd.md) | [レベル6: IaCとCI/CD](../../projects/06-iac-cicd/README.md)。Terraformでレベル2相当の構成をコード化し、`plan` → 承認 → `apply` を通す | ClickOpsとIaCの違い、tfstateとステートロックの必要性を説明できる |
-| 仕上げ | このページ(⑩) | 「2. まぎらわしい用語の対比」を声に出して読み、「4. 総まとめテスト」50問を通しで解く。[面接での伝え方](../04-interview-prep.md)と[コスト管理と無料利用枠ガイド](../03-cost-management.md)を読む | 構成図を見ながら15分間、用語を正しく使って自分の構成を説明できる |
+| 29〜30日目 | [⑧IaCとCI/CD](08-iac-cicd.md) | [レベル6: IaCとCI/CD](../../projects/06-iac-cicd/README.md)。Terraformでレベル2相当の構成をコード化し、`plan` → 承認 → `apply` を通す | ClickOps(コンソール画面を手作業でクリックして構築・変更する運用スタイル)とIaCの違い、tfstateとステートロックの必要性を説明できる |
+| 仕上げ | このページ(⑩) | 「2. まぎらわしい用語の対比」を声に出して読み、「4. 総まとめテスト」55問を通しで解く。[面接での伝え方](../04-interview-prep.md)と[コスト管理と無料利用枠ガイド](../03-cost-management.md)を読む | 構成図を見ながら15分間、用語を正しく使って自分の構成を説明できる |
 
 > ⚠️ **必ず守ってほしいこと**: 各レベルを終えたら、**その日のうちに使わないリソースを削除**してください。特にNATゲートウェイ・Elastic IP・RDS・ALBは、アクセスがなくても時間課金が続きます。削除手順は各案件のREADME末尾と[コスト管理と無料利用枠ガイド](../03-cost-management.md)にまとめてあります。
 
 > ✅ **30日で終わらなくても問題ありません**。大事なのは日数ではなく「読んだ用語を、その週のうちに手で触ったか」です。触った用語は忘れませんが、読んだだけの用語は3日で消えます。
+
+## 参考リンク(公式ドキュメント)
+
+このページは①〜⑨の要点を圧縮しているため、料金・上限値・既定値などは記述時点のものです。**面接や案件で数値を口にする前に、必ず一次情報で確認してください。**
+
+- [AWS ドキュメントトップ](https://docs.aws.amazon.com/)
+- [AWS 用語集](https://docs.aws.amazon.com/ja_jp/general/latest/gr/glos-chap.html)
+- [AWS 無料利用枠](https://aws.amazon.com/jp/free/)
+- [AWS 料金表](https://aws.amazon.com/jp/pricing/)
+- [責任共有モデル](https://aws.amazon.com/jp/compliance/shared-responsibility-model/)
+- [AWS Well-Architected Framework](https://aws.amazon.com/jp/architecture/well-architected/)
+- [Service Quotas ユーザーガイド](https://docs.aws.amazon.com/servicequotas/latest/userguide/intro.html)
 
 ## 関連ドキュメント
 
