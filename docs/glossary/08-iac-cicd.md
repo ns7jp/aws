@@ -96,7 +96,7 @@ flowchart TD
 | [CodeBuild](#codebuild) | ビルドやテストのコマンドを実行するマネージド実行環境 |
 | [buildspec](#buildspec) | CodeBuildに「何をどの順で実行するか」を指示するYAMLファイル |
 | [CodeCommit](#codecommit) | AWSが提供するプライベートなGitリポジトリサービス |
-| [CodeStar Connections](#codestar-connections) | GitHubなど外部リポジトリとAWSを安全につなぐ接続機能 |
+| [CodeConnections](#codeconnections) | GitHubなど外部リポジトリとAWSを安全につなぐ接続機能 |
 | [CodeDeploy](#codedeploy) | EC2やECS、Lambdaへの配布と切り替えを担当するサービス |
 | [GitHub Actions](#github-actions) | GitHub上でワークフローを自動実行するCI/CDの仕組み |
 | [OIDC](#oidc) | 長期のアクセスキーを置かずに一時認証情報を得る連携方式 |
@@ -260,7 +260,7 @@ flowchart TD
 
 **サーバー構築での勘所**:
 - 「AWSしか使わない」「状態ファイルの管理まで自分で面倒を見たくない」「AWSの新機能にいち早く追随したい」という状況ではCloudFormationが有力です。逆に「他社クラウドも扱う」「差分表示の読みやすさを重視する」場合はTerraformが選ばれやすくなります。
-- スタックは**削除の単位でもあります**。うっかりスタックごと削除すると中のリソースも消えます。消えては困るリソースには削除保護(Deletion Policy の `Retain` など)を設定します。
+- スタックは**削除の単位でもあります**。うっかりスタックごと削除すると中のリソースも消えます。消えては困るリソースには、テンプレート側でリソースごとに `DeletionPolicy: Retain` を指定します。スタックそのものを誤って消さないためには、スタック単位の**終了保護**(Termination Protection)を併せて有効にします。この2つは別の機能なので、分けて覚えてください。
 - テンプレートには `Parameters`(入力)、`Resources`(必須。作るもの)、`Outputs`(出力)というセクションがあり、それぞれTerraformの[変数](#変数)、[リソースブロック](#リソースブロック)、[出力値](#出力値)にほぼ対応します。この対応関係で覚えると、両方を同時に理解できます。
 
 **よくあるつまずき**: 更新に失敗して `UPDATE_ROLLBACK_FAILED` という状態で止まり、次の更新も受け付けなくなることがあります。手作業でリソースを消してしまった場合に起きやすいため、**スタック管理下のリソースをコンソールから直接削除しない**のが鉄則です。
@@ -390,7 +390,30 @@ flowchart TD
 
 **たとえるなら**: 工務店が持っている「その国の建築基準に対応した工具箱」です。AWS用の工具箱を差し込めばAWSの建物が建ち、別の工具箱に差し替えれば別の国の建物が建ちます。
 
-**もう少し詳しく**: AWSを操作するなら `hashicorp/aws` プロバイダを使います。宣言は2か所に分かれます。1つは `terraform { required_providers { aws = { source = "hashicorp/aws", version = "~> 5.0" } } }` というバージョン制約、もう1つは `provider "aws" { region = "ap-northeast-1" }` という接続設定です。認証情報はコードに書かず、環境変数・AWS CLIのプロファイル・EC2やCodeBuildに割り当てた[IAMロール](06-security-identity.md#iamロール)から自動的に読み込ませます。同じプロバイダを別設定で複数使いたい場合は `alias` を使います。典型例が「CloudFront用のACM証明書だけは `us-east-1` で発行する」ケースで、`provider "aws" { alias = "virginia", region = "us-east-1" }` を追加し、リソース側で `provider = aws.virginia` と指定します。
+**もう少し詳しく**: AWSを操作するなら `hashicorp/aws` プロバイダを使います。宣言は2か所に分かれます。1つは `terraform` ブロックの中の `required_providers` に書くバージョン制約、もう1つは `provider` ブロックに書く接続設定です。HCLでは引数をカンマで区切って1行に並べることはできないため、次のように改行して書きます。
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "ap-northeast-1"
+}
+
+# 別リージョンも併用したいときは alias を付けて2つ目を宣言する
+provider "aws" {
+  alias  = "virginia"
+  region = "us-east-1"
+}
+```
+
+認証情報はコードに書かず、環境変数・AWS CLIのプロファイル・EC2やCodeBuildに割り当てた[IAMロール](06-security-identity.md#iamロール)から自動的に読み込ませます。同じプロバイダを別設定で複数使いたい場合に使うのが、上の例の `alias` です。典型例は「CloudFront用のACM証明書だけは `us-east-1` で発行する」ケースで、リソース側では `provider = aws.virginia` と指定します。
 
 **サーバー構築での勘所**:
 - バージョンは必ず制約付きで固定します。`~> 5.0` は「5系の中で最新」を意味し、メジャーバージョンの破壊的変更を防げます。実際の固定値は `.terraform.lock.hcl` に記録されます。
@@ -415,7 +438,16 @@ flowchart TD
 - `tags` は全リソースに一貫して付けます。プロバイダの `default_tags` を使うと、共通タグを一括で適用できて漏れがなくなります。
 - リソースタイプの名前と属性名は、コンソールの画面項目とほぼ対応しています。分からない属性が出てきたら、コンソールで同じ画面を開いて突き合わせると理解が早いです。
 
-**よくあるつまずき**: ローカル名を変更すると、Terraformは「古いリソースを削除して新しく作る」と判断します。名前だけ変えたいときは `terraform state mv` で状態側の住所を移してから、コードを変更します。
+**よくあるつまずき**: ローカル名を変更すると、Terraformは「古いリソースを削除して新しく作る」と判断します。名前だけ変えたいときは、コードに次の `moved` ブロックを書いて `apply` するのが現在の標準です(Terraform 1.1以降)。
+
+```hcl
+moved {
+  from = aws_vpc.old
+  to   = aws_vpc.new
+}
+```
+
+手元で状態ファイルだけを動かす `terraform state mv` という方法もありますが、操作がコードに残らずレビューもできないため、チームで運用するときは `moved` ブロックを優先します。
 
 **関連用語**: [HCL](#hcl)、[データソース](#データソース)、[tfstate](#tfstate)、[terraform plan](#terraform-plan)
 
@@ -427,7 +459,21 @@ flowchart TD
 
 **たとえるなら**: 「既存の建物の登記情報を役所で調べる」作業です。自分では建てませんが、その情報を使って隣に新しい建物を建てられます。
 
-**もう少し詳しく**: `data "aws_ami" "amazon_linux_2023" { most_recent = true, owners = ["amazon"], filter { ... } }` のように書き、`data.aws_ami.amazon_linux_2023.id` で参照します。典型的な用途は、(1)最新の[AMI](03-compute.md#ami) IDを毎回自動で取得する、(2)手作業で作った既存VPCのIDを引いてくる、(3)自分のアカウントIDやリージョン名を取得する(`data "aws_caller_identity"`、`data "aws_region"`)、(4)IAMポリシーのJSONを組み立てる(`data "aws_iam_policy_document"`)、です。AMI IDのようにリージョンごと・更新ごとに変わる値をコードへ直書きしないための必須テクニックです。
+**もう少し詳しく**: 次のように書き、`data.aws_ami.amazon_linux_2023.id` で参照します。
+
+```hcl
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+```
+
+典型的な用途は、(1)最新の[AMI](03-compute.md#ami) IDを毎回自動で取得する、(2)手作業で作った既存VPCのIDを引いてくる、(3)自分のアカウントIDやリージョン名を取得する(`data "aws_caller_identity"`、`data "aws_region"`)、(4)IAMポリシーのJSONを組み立てる(`data "aws_iam_policy_document"`)、です。AMI IDのようにリージョンごと・更新ごとに変わる値をコードへ直書きしないための必須テクニックです。
 
 **サーバー構築での勘所**:
 - AMI IDは[Parameter Store](06-security-identity.md#parameter-store)のパブリックパラメータ(`/aws/service/ami-amazon-linux-latest/...` のようなパス)から取得する方法もあります。どちらの方式でも「直書きしない」ことが重要です。
@@ -446,7 +492,17 @@ flowchart TD
 
 **たとえるなら**: 工務店の「注文フォーム」です。同じ設計図でも、色・広さ・台数の欄を書き換えるだけで別の建物が建ちます。
 
-**もう少し詳しく**: `variable "instance_type" { description = "EC2インスタンスタイプ", type = string, default = "t3.micro" }` のように宣言し、コード内では `var.instance_type` で参照します。`type` には `string` / `number` / `bool` / `list(...)` / `map(...)` / `object({...})` を指定でき、想定外の値を早期に弾けます。`validation` ブロックを付ければ「CIDR形式であること」のような独自チェックも書けます。`sensitive = true` を付けると `plan` / `apply` の出力からその値が伏せられます(ただし[tfstate](#tfstate)には記録されるため、機密の完全な保護にはなりません)。値の指定方法は複数あり、優先順位は高いほうから **コマンドラインの `-var` / `-var-file` → `*.auto.tfvars` → `terraform.tfvars` → 環境変数 `TF_VAR_名前` → `default`** の順です。
+**もう少し詳しく**: 次のように宣言し、コード内では `var.instance_type` で参照します。
+
+```hcl
+variable "instance_type" {
+  description = "EC2インスタンスタイプ"
+  type        = string
+  default     = "t3.micro"
+}
+```
+
+`type` には `string` / `number` / `bool` / `list(...)` / `map(...)` / `object({...})` を指定でき、想定外の値を早期に弾けます。`validation` ブロックを付ければ「CIDR形式であること」のような独自チェックも書けます。`sensitive = true` を付けると `plan` / `apply` の出力からその値が伏せられます(ただし[tfstate](#tfstate)には記録されるため、機密の完全な保護にはなりません)。値の指定方法は複数あり、優先順位は高いほうから **コマンドラインの `-var` / `-var-file` → `*.auto.tfvars` → `terraform.tfvars` → 環境変数 `TF_VAR_名前` → `default`** の順です。
 
 **サーバー構築での勘所**:
 - `description` は必ず書きます。数か月後の自分と、レビュアーのための説明です。
@@ -485,7 +541,16 @@ flowchart TD
 
 **たとえるなら**: 工事完了時に受け取る「引き渡し伝票」です。部屋番号(インスタンスID)や電話番号(パブリックIP)が書かれていて、次の作業に使えます。
 
-**もう少し詳しく**: `output "web_server_public_ip" { description = "作成したEC2のパブリックIP", value = module.ec2.public_ip }` のように書きます。`terraform output` コマンドで確認でき、`terraform output -raw 名前` とすればスクリプトから値だけを取り出せます。モジュールでは出力値が「外に見せるインターフェース」になり、親モジュールから `module.vpc.vpc_id` の形で参照されます。つまり、モジュールの[変数](#変数)が入力、出力値が戻り値にあたります。
+**もう少し詳しく**: 次のように書きます。
+
+```hcl
+output "web_server_public_ip" {
+  description = "作成したEC2のパブリックIP"
+  value       = module.ec2.public_ip
+}
+```
+
+`terraform output` コマンドで確認でき、`terraform output -raw 名前` とすればスクリプトから値だけを取り出せます。モジュールでは出力値が「外に見せるインターフェース」になり、親モジュールから `module.vpc.vpc_id` の形で参照されます。つまり、モジュールの[変数](#変数)が入力、出力値が戻り値にあたります。
 
 **サーバー構築での勘所**:
 - 出力値は「次の作業で使うもの」に絞ります。すべての属性を出力すると、CIのログが読みにくくなります。
@@ -502,7 +567,16 @@ flowchart TD
 
 **たとえるなら**: 「レゴブロックの部品箱」です。`modules/` が部品箱、`environments/` がその部品で組み立てた完成品(dev用の街、prod用の街)にあたります。
 
-**もう少し詳しく**: どんなTerraform構成にも、コマンドを実行するディレクトリ自体である**ルートモジュール**が存在します。そこから `module "vpc" { source = "../../modules/vpc", project_name = "handson-dev" }` のように呼び出されるのが**子モジュール**です。`source` にはローカルパスのほか、[Terraform Registry](#terraform-registry)のアドレスやGitのURLも指定できます。レジストリやGitから取得する場合は `version` を必ず固定します。モジュール化の狙いは「同じ構成をdev/prodで作り分ける」「VPCの作り方をチームの標準として1か所に集約する」ことです。
+**もう少し詳しく**: どんなTerraform構成にも、コマンドを実行するディレクトリ自体である**ルートモジュール**が存在します。そこから次のように呼び出されるのが**子モジュール**です。
+
+```hcl
+module "vpc" {
+  source       = "../../modules/vpc"
+  project_name = "handson-dev"
+}
+```
+
+`source` にはローカルパスのほか、[Terraform Registry](#terraform-registry)のアドレスやGitのURLも指定できます。レジストリから取得する場合は `version` 引数でバージョンを必ず固定します。Gitから取得する場合は `version` 引数が使えないため、`source = "git::https://github.com/<組織名>/terraform-aws-vpc.git?ref=v1.0.0"` のように `?ref=` にタグ名やコミットハッシュを書いて固定します。モジュール化の狙いは「同じ構成をdev/prodで作り分ける」「VPCの作り方をチームの標準として1か所に集約する」ことです。
 
 **サーバー構築での勘所**:
 - 最初から細かくモジュール化しないでください。1つのディレクトリに素直に書き、「2回目の複製が必要になった時点で切り出す」のが失敗しにくい順序です。
@@ -577,7 +651,7 @@ flowchart TD
 
 **たとえるなら**: 図面の「線の太さと文字の大きさを社内標準に揃える」作業です。内容は変わりませんが、揃っているだけでレビューの速度が上がります。
 
-**もう少し詳しく**: `terraform fmt` を実行するとファイルが書き換えられ、`-recursive` を付ければサブディレクトリも対象になります。`-check` を付けると書き換えずに「整形が必要なファイルがあるか」だけを判定し、必要があれば終了コード1を返します。CIではこの `-check` を使い、整形されていないコードがマージされないようにします。このリポジトリの [scripts/validate.sh](../../scripts/validate.sh) も `terraform fmt -check -recursive` で検査しています。
+**もう少し詳しく**: `terraform fmt` を実行するとファイルが書き換えられ、`-recursive` を付ければサブディレクトリも対象になります。`-check` を付けると書き換えずに「整形が必要なファイルがあるか」だけを判定し、必要があれば0以外(非ゼロ)の終了コードを返します。CIではこの `-check` を使い、整形されていないコードがマージされないようにします。このリポジトリの [scripts/validate.sh](../../scripts/validate.sh) も `terraform fmt -check -recursive` で検査しています。
 
 **サーバー構築での勘所**:
 - 書式の議論はレビューの時間を無駄に消費します。「整形はツールに任せ、レビューでは設計だけを議論する」というルールをチームで決めてください。
@@ -688,10 +762,11 @@ flowchart TD
 ```hcl
 terraform {
   backend "s3" {
-    bucket  = "handson-tfstate-<自分のアカウント固有の文字列>"
-    key     = "dev/terraform.tfstate"
-    region  = "ap-northeast-1"
-    encrypt = true
+    bucket         = "handson-tfstate-<自分のアカウント固有の文字列>"
+    key            = "dev/terraform.tfstate"
+    region         = "ap-northeast-1"
+    dynamodb_table = "terraform-state-lock" # ステートロック用(バージョンにより書き方が変わります)
+    encrypt        = true
   }
 }
 ```
@@ -884,14 +959,14 @@ terraform {
 
 **たとえるなら**: 「工事現場に設置した呼び鈴」です。誰かが図面を差し替えたら、その場で事務所の呼び鈴が鳴り、次の工程が動き出します。
 
-**もう少し詳しく**: GitHubでは、pushやプルリクエストの作成といったイベントをきっかけに、指定したURLへJSON形式のデータをPOSTできます。CI/CDの世界では「コードが変わったことをパイプラインに知らせる」役目を担います。定期的に問い合わせに行くポーリング方式に比べ、反応が速く無駄がないのが利点です。AWSでは、[CodeStar Connections](#codestar-connections)を使ってGitHubと連携する場合、この通知の仕組みはAWS側が自動的に設定してくれるため、利用者が手作業でWebhookを作る場面は減っています。AWS内部でも[EventBridge](07-monitoring-operations.md#eventbridge)や[SNS](07-monitoring-operations.md#sns)のHTTPSサブスクリプションが、似た「起きたら知らせる」役割を担っています。
+**もう少し詳しく**: GitHubでは、pushやプルリクエストの作成といったイベントをきっかけに、指定したURLへJSON形式のデータをPOSTできます。CI/CDの世界では「コードが変わったことをパイプラインに知らせる」役目を担います。定期的に問い合わせに行くポーリング方式に比べ、反応が速く無駄がないのが利点です。AWSでは、[CodeConnections](#codeconnections)を使ってGitHubと連携する場合、この通知の仕組みはAWS側が自動的に設定してくれるため、利用者が手作業でWebhookを作る場面は減っています。AWS内部でも[EventBridge](07-monitoring-operations.md#eventbridge)や[SNS](07-monitoring-operations.md#sns)のHTTPSサブスクリプションが、似た「起きたら知らせる」役割を担っています。
 
 **サーバー構築での勘所**:
 - Webhookの受け口は基本的にインターネット公開されるため、署名(シークレット)の検証が必須です。検証しないと、第三者が偽の通知を送ってパイプラインを起動できてしまいます。
 - 通知は届かないこともあれば、二重に届くこともあります。受け取る側は[冪等性](#冪等性)を持たせて作ります。
 - 通知が来ないときは、まず送信側(GitHubのWebhook配信履歴)でHTTPステータスコードを確認します。送っていないのか、送ったが受け側が失敗しているのかで切り分けが変わります。
 
-**関連用語**: [CodeStar Connections](#codestar-connections)、[CodePipeline](#codepipeline)、[EventBridge](07-monitoring-operations.md#eventbridge)、[冪等性](#冪等性)
+**関連用語**: [CodeConnections](#codeconnections)、[CodePipeline](#codepipeline)、[EventBridge](07-monitoring-operations.md#eventbridge)、[冪等性](#冪等性)
 
 **登場する案件**: [レベル6: IaCとCI/CD](../../projects/06-iac-cicd/README.md)
 
@@ -1019,7 +1094,7 @@ terraform {
 
 **たとえるなら**: 「工場のベルトコンベアそのもの」です。各持ち場(CodeBuildなど)に実作業を任せ、コンベア自体は「順番に流す」ことに専念します。
 
-**もう少し詳しく**: CodePipeline自身はビルドを実行しません。各[ステージ](#ステージ)で[CodeBuild](#codebuild)、[CodeDeploy](#codedeploy)、CloudFormation、Lambda、ECSなどのアクションを呼び出し、成功・失敗に応じて次へ進めるかを判断する司令塔です。ソースは[CodeCommit](#codecommit)、S3、そして[CodeStar Connections](#codestar-connections)経由のGitHubなどが使えます。パイプラインの状態変化は[EventBridge](07-monitoring-operations.md#eventbridge)のイベントとして扱えるため、失敗時に[SNS](07-monitoring-operations.md#sns)へ通知する構成が定番です。
+**もう少し詳しく**: CodePipeline自身はビルドを実行しません。各[ステージ](#ステージ)で[CodeBuild](#codebuild)、[CodeDeploy](#codedeploy)、CloudFormation、Lambda、ECSなどのアクションを呼び出し、成功・失敗に応じて次へ進めるかを判断する司令塔です。ソースは[CodeCommit](#codecommit)、S3、そして[CodeConnections](#codeconnections)経由のGitHubなどが使えます。パイプラインの状態変化は[EventBridge](07-monitoring-operations.md#eventbridge)のイベントとして扱えるため、失敗時に[SNS](07-monitoring-operations.md#sns)へ通知する構成が定番です。
 
 **サーバー構築での勘所**:
 - CodePipelineに渡すサービスロールと、各アクション(CodeBuildなど)が使うロールは別物です。権限エラーが出たときは、どちらのロールの話かをまず切り分けます。
@@ -1028,7 +1103,7 @@ terraform {
 
 **💰 コスト**: アクティブなパイプライン単位の月額課金と、実行時間に応じた課金の体系があります(体系はタイプにより異なります)。パイプラインを作りっぱなしにすると、使っていなくても課金が続く点に注意してください。最新の料金・無料利用枠の条件は必ず公式ページで確認してください([AWS CodePipelineの料金](https://aws.amazon.com/jp/codepipeline/pricing/)、[AWS無料利用枠](https://aws.amazon.com/jp/free/))。
 
-**関連用語**: [パイプライン](#パイプライン)、[CodeBuild](#codebuild)、[手動承認](#手動承認)、[CodeStar Connections](#codestar-connections)
+**関連用語**: [パイプライン](#パイプライン)、[CodeBuild](#codebuild)、[手動承認](#手動承認)、[CodeConnections](#codeconnections)
 
 **登場する案件**: [レベル6: IaCとCI/CD](../../projects/06-iac-cicd/README.md)
 
@@ -1062,7 +1137,7 @@ terraform {
 
 **たとえるなら**: 作業台に貼られた「作業手順書」です。作業員(CodeBuild)は、この手順書に書かれたとおりに上から順に作業します。
 
-**もう少し詳しく**: 既定ではリポジトリ直下の `buildspec.yml` が読まれますが、CodeBuildプロジェクトの設定で別のパスを指定できます(レベル6では `buildspec/plan.yml` と `buildspec/apply.yml` に分けています)。主要な構造は次のとおりです。`version: 0.2`(書式のバージョン)、`env`(環境変数。Parameter StoreやSecrets Managerからの取得も指定可能)、`phases`(`install` → `pre_build` → `build` → `post_build` の順に実行)、`artifacts`(次のステージへ渡すファイル)、`cache`(実行間で再利用するディレクトリ)、`reports`(テスト結果の取り込み)。**各コマンドは独立したシェルで実行されるわけではありませんが、`cd` の効果はフェーズをまたいで保証されないため、ディレクトリ移動は同じフェーズ内でまとめて書く**のが安全です。
+**もう少し詳しく**: 既定ではリポジトリ直下の `buildspec.yml` が読まれますが、CodeBuildプロジェクトの設定で別のパスを指定できます(レベル6では `cicd/buildspec-plan.yml` と `cicd/buildspec-apply.yml` に分けています)。主要な構造は次のとおりです。`version: 0.2`(書式のバージョン)、`env`(環境変数。Parameter StoreやSecrets Managerからの取得も指定可能)、`phases`(`install` → `pre_build` → `build` → `post_build` の順に実行)、`artifacts`(次のステージへ渡すファイル)、`cache`(実行間で再利用するディレクトリ)、`reports`(テスト結果の取り込み)。**`version: 0.1` では各コマンドが別々のシェルで実行されるため `cd` の効果が次のコマンドに残りませんが、`version: 0.2` ではすべてのビルドコマンドが同じシェルで実行されるため、`cd` や環境変数の設定が後続のコマンド・フェーズにも引き継がれます**。とはいえ、どのディレクトリで動いているかを読み手に明示するため、フェーズごとに `cd` を書いておくと事故が減ります。
 
 **サーバー構築での勘所**:
 - planとapplyでbuildspecを分けると、それぞれのCodeBuildプロジェクトに与える権限も分けられます。planは読み取り中心、applyは書き込みあり、という分離はセキュリティ上有効です。
@@ -1082,23 +1157,23 @@ terraform {
 
 **たとえるなら**: 「社内専用の保管庫つきGit」です。社外のサービスを使わず、社内の金庫室に図面を保管するイメージです。
 
-**もう少し詳しく**: リポジトリへのアクセス権限を[IAM](06-security-identity.md#iam)で管理でき、保管時の暗号化や[CloudTrail](06-security-identity.md#cloudtrail)による操作記録がAWSの仕組みでそのまま使えるのが利点です。一方で、プルリクエストのレビュー体験やエコシステムの広さではGitHubに軍配が上がります。**重要な注意点として、CodeCommitは新規のお客様への提供が終了しており、これから新しく始める場合は選択できません**(既存利用者は継続利用できます)。そのため現在の一般的な構成は、GitHubなど外部のGitホスティングを使い、[CodeStar Connections](#codestar-connections)でAWSと連携する形です。最新の提供状況は公式ドキュメントで確認してください。
+**もう少し詳しく**: リポジトリへのアクセス権限を[IAM](06-security-identity.md#iam)で管理でき、保管時の暗号化や[CloudTrail](06-security-identity.md#cloudtrail)による操作記録がAWSの仕組みでそのまま使えるのが利点です。一方で、プルリクエストのレビュー体験やエコシステムの広さではGitHubに軍配が上がります。**提供状況には経緯があります。** 2024年7月にいったん新規のお客様への提供が停止されましたが、2025年11月24日に一般提供へ復帰し、現在は新規のAWSアカウントでもリポジトリを作成できます。この間に「CodeCommitはもう使えない」と書かれた解説記事が大量に出回ったため、古い情報に当たっても鵜呑みにしないでください。とはいえ、この空白期間にGitHubへ移行した現場が多く、実務で見かける構成としてはGitHubなど外部のGitホスティングを使い、[CodeConnections](#codeconnections)でAWSと連携する形が依然として主流です。最新の提供状況は公式ドキュメントで確認してください。
 
 **サーバー構築での勘所**:
 - 用語としては知っておく価値があります。既存システムの引き継ぎで登場することがあり、面接でも「AWS純正のGitサービス」として名前が出ます。
 - これから学ぶなら、Gitのホスティングは GitHub を前提にして問題ありません。CI/CD側の考え方(Source→Build→承認→Deploy)は、どのホスティングでも変わりません。
 
-**関連用語**: [Git](#git)、[リポジトリ](#リポジトリ)、[CodeStar Connections](#codestar-connections)、[CodePipeline](#codepipeline)
+**関連用語**: [Git](#git)、[リポジトリ](#リポジトリ)、[CodeConnections](#codeconnections)、[CodePipeline](#codepipeline)
 
-### CodeStar Connections
+### CodeConnections
 
-**別名**: AWS CodeConnections(近年の名称) ｜ **読み方**: コードスター・コネクションズ ｜ **重要度**: ★★
+**正式名称**: AWS CodeConnections ｜ **旧称**: AWS CodeStar Connections(2024年3月に改称) ｜ **読み方**: コードコネクションズ ｜ **重要度**: ★★
 
 **ひとことで言うと**: GitHubなど外部のコードリポジトリと、AWSのサービスを安全につなぐための認証済み接続機能です。
 
 **たとえるなら**: 社外の図面業者とやり取りするための「正式な取引口座の開設」です。一度きちんと開設しておけば、以後は担当者の個人アカウントに依存せずに図面を受け取れます。
 
-**もう少し詳しく**: マネジメントコンソールの「Developer Tools」→「設定」→「接続」から作成し、GitHub側で認証・対象リポジトリの許可を行います。作成した接続を[CodePipeline](#codepipeline)のSourceステージで指定すると、pushの検知からソース取得までを、個人のアクセストークンを使わずに実現できます。接続にはステータスがあり、認証が完了していないと「保留中(Pending)」のままになります。**パイプラインが起動しないときは、まずこの接続ステータスが「利用可能(Available)」かどうかを確認**してください。サービス名は近年 AWS CodeConnections へと変わってきているため、コンソールやドキュメントで両方の名称を見かけることがあります。
+**もう少し詳しく**: マネジメントコンソールの「Developer Tools」→「設定」→「接続」から作成し、GitHub側で認証・対象リポジトリの許可を行います。作成した接続を[CodePipeline](#codepipeline)のSourceステージで指定すると、pushの検知からソース取得までを、個人のアクセストークンを使わずに実現できます。接続にはステータスがあり、認証が完了していないと「保留中(Pending)」のままになります。**パイプラインが起動しないときは、まずこの接続ステータスが「利用可能(Available)」かどうかを確認**してください。サービス名は2024年3月に AWS CodeStar Connections から AWS CodeConnections へ改称されました。ARNやAPIには旧名の `codestar-connections` が残っている箇所があり、コンソールやドキュメントでも両方の名称を見かけるため、同じものだと覚えておいてください。
 
 **サーバー構築での勘所**:
 - 接続は個人のGitHubアカウントに紐づく形で作成されることがあります。担当者の退職でパイプラインが止まらないよう、組織(Organization)のアカウントで作成・管理するのが安全です。
@@ -1123,7 +1198,7 @@ terraform {
 - [Auto Scaling Group](03-compute.md#auto-scaling-group)と組み合わせる場合、スケールアウトで増えたインスタンスにも最新版が入るように、[起動テンプレート](03-compute.md#起動テンプレート)側の[AMI](03-compute.md#ami)や[ユーザーデータ](03-compute.md#ユーザーデータ)との整合を設計する必要があります。
 - 自動ロールバックの条件として[CloudWatchアラーム](07-monitoring-operations.md#cloudwatchアラーム)を指定できます。監視の設計とデプロイの設計はつながっている、という好例です。
 
-**💰 コスト**: EC2/オンプレミス以外(LambdaやECS)へのデプロイに対する追加料金の扱いはサービスごとに異なります。最新の料金・無料利用枠の条件は必ず公式ページで確認してください([AWS無料利用枠](https://aws.amazon.com/jp/free/))。
+**💰 コスト**: EC2・Lambda・ECSへのデプロイに対して、CodeDeploy自体の追加料金はかかりません。課金対象はオンプレミスインスタンスへのデプロイで、インスタンスの更新1回ごとの従量課金です。最新の料金・無料利用枠の条件は必ず公式ページで確認してください([AWS CodeDeployの料金](https://aws.amazon.com/jp/codedeploy/pricing/)、[AWS無料利用枠](https://aws.amazon.com/jp/free/))。
 
 **関連用語**: [デプロイ](#デプロイ)、[ブルーグリーンデプロイ](#ブルーグリーンデプロイ)、[ローリングアップデート](#ローリングアップデート)、[CodePipeline](#codepipeline)
 
@@ -1329,7 +1404,7 @@ terraform {
 2. **工務店を選ぶ**: AWSという国の言葉しか話さない地元業者が**CloudFormation**。渡す図面が**テンプレート**、1件の工事案件が**スタック**、着工前の変更見積が**変更セット**、図面をCADで描く方式が**AWS CDK**です。もう一方は、どの国でも通じる**Terraform**。専用の図面記号が**HCL**、国ごとの工具箱が**プロバイダ**、部品1つ分の記載が**リソースブロック**、既存物件の登記調査が**データソース**、注文フォームが**変数**、記入済みの控えが**tfvars**、引き渡し伝票が**出力値**、レゴの部品箱が**モジュール**、部品カタログが**Terraform Registry**です。
 3. **工事の手順を守る**: 着工準備が**terraform init**、社内チェックが**terraform validate**、図面の書式統一が**terraform fmt**、レントゲン写真が**terraform plan**、実際の手術が**terraform apply**、解体工事が**terraform destroy**。工事状況を書いた台帳が**tfstate**、その金庫の場所が**バックエンド**、台帳に掛ける使用中の札が**ステートロック**、その札を強制的に外す最終手段が**force-unlock**、台帳だけ複数冊持つ方式が**Terraform Workspace**です。
 4. **チームで回す**: 履歴付きの図面バインダーが**Git**、案件ごとのキャビネットが**リポジトリ**、図面のコピーに改修案を描くのが**ブランチ**、ハンコを押して1版に確定するのが**コミット**、改修案の回覧板が**プルリクエスト**、原本キャビネットの鍵が**ブランチ保護ルール**、差し替えを知らせる呼び鈴が**Webhook**です。
-5. **自動化する**: 部材が届くたびの検品が**CI**、いつでも搬入できる状態が**CD**。ベルトコンベアが**パイプライン**、その持ち場が**ステージ**、工程間で手渡す半製品が**アーティファクト**、稟議書のハンコが**手動承認**。コンベア本体が**CodePipeline**、作業台が**CodeBuild**、作業手順書が**buildspec**、社内専用の保管庫が**CodeCommit**、社外業者との取引口座が**CodeStar Connections**、搬入班が**CodeDeploy**。キャビネット内蔵の検品ロボットが**GitHub Actions**、当日限りの入館証を発行する方式が**OIDC**、図面の安全審査員が**tfsec**、手順書の校正ツールが**shellcheck**です。
+5. **自動化する**: 部材が届くたびの検品が**CI**、いつでも搬入できる状態が**CD**。ベルトコンベアが**パイプライン**、その持ち場が**ステージ**、工程間で手渡す半製品が**アーティファクト**、稟議書のハンコが**手動承認**。コンベア本体が**CodePipeline**、作業台が**CodeBuild**、作業手順書が**buildspec**、社内専用の保管庫が**CodeCommit**、社外業者との取引口座が**CodeConnections**、搬入班が**CodeDeploy**。キャビネット内蔵の検品ロボットが**GitHub Actions**、当日限りの入館証を発行する方式が**OIDC**、図面の安全審査員が**tfsec**、手順書の校正ツールが**shellcheck**です。
 6. **安全に切り替える**: 反映作業そのものが**デプロイ**。営業しながら数席ずつ改装するのが**ローリングアップデート**、隣に新店舗を建てて看板を付け替えるのが**ブルーグリーンデプロイ**、まず1テーブルだけに新メニューを出すのが**カナリアリリース**、工房と店舗を別の建物にするのが**環境分離**です。
 
 > 🧠 **覚え方のコツ**: 合言葉は「**図・台・判・流**(ずだいはんりゅう)」の4文字です。**図**面(コード)を書き、**台**帳(tfstate)で現況を管理し、人の**判**断(plan確認と手動承認)を挟んでから、パイプラインに**流**す。⑧のどの用語も、この4つのどれかに属します。そしてこの章を貫く鉄則が1つあります。それは「**本番に触れる経路を1本にする**」。IaCもブランチ保護も承認ステージもOIDCも、すべて「誰でもどこからでも本番を変えられる状態をなくす」ための道具だと理解すると、バラバラの暗記ではなく1本の筋として頭に残ります。
@@ -1365,9 +1440,9 @@ terraform {
 | `terraform plan` の差分が想定外に大きい | [ドリフト](#ドリフト)、[プロバイダ](#プロバイダ)のバージョン変更 | まず `apply` しない。コンソールでの手動変更履歴を[CloudTrail](06-security-identity.md#cloudtrail)で確認し、プロバイダのバージョンが上がっていないかも見る |
 | `terraform init` が `NoSuchBucket` で失敗する | [バックエンド](#バックエンド)のバケット名・リージョンの誤り | `backend.tf` の `bucket` / `region` と、実際のS3バケットの名前・リージョンを突き合わせる |
 | tfstateを消してしまい、同じリソースを二重作成しようとする | [tfstate](#tfstate)の消失、[バージョニング](04-storage.md#バージョニング)の未設定 | S3のバージョニングから以前のtfstateを復元する。復元できない場合は `terraform import` で1つずつ取り込む |
-| CodeBuildで「UnauthorizedOperation」や認証エラーが出る | サービスロールの権限不足、[CodeStar Connections](#codestar-connections)の接続ステータス | CodeBuildのサービスロールに必要なアクションがあるかIAMポリシーを確認し、接続が「利用可能(Available)」かも見る |
+| CodeBuildで「UnauthorizedOperation」や認証エラーが出る | サービスロールの権限不足、[CodeConnections](#codeconnections)の接続ステータス | CodeBuildのサービスロールに必要なアクションがあるかIAMポリシーを確認し、接続が「利用可能(Available)」かも見る |
 | CodeBuildで `terraform: command not found` になる | 実行環境イメージにTerraformが入っていない | Terraform同梱のカスタムイメージを指定するか、[buildspec](#buildspec)のinstallフェーズでインストールする |
-| GitHubにpushしてもパイプラインが起動しない | [Webhook](#webhook)/[CodeStar Connections](#codestar-connections)、Sourceステージのブランチ指定 | 接続ステータスと、Sourceステージで指定したブランチ名(`main` かどうか)を確認する |
+| GitHubにpushしてもパイプラインが起動しない | [Webhook](#webhook)/[CodeConnections](#codeconnections)、Sourceステージのブランチ指定 | 接続ステータスと、Sourceステージで指定したブランチ名(`main` かどうか)を確認する |
 | CIが `terraform fmt` で落ちる | [terraform fmt](#terraform-fmt)未実行 | ローカルで `terraform fmt -recursive` を実行してコミットする。エディタの保存時フォーマットを有効化する |
 | buildspecが「YAMLの解析エラー」で失敗する | [YAML](#yaml)のインデント、タブ文字の混入 | タブを半角スペースに置換し、ローカルでYAMLの構文チェックを通してからpushする |
 | PRで承認なしにmainへマージされてしまった | [ブランチ保護ルール](#ブランチ保護ルール)の未設定、管理者への未適用 | GitHubの「Settings」→「Branches」で保護ルールと「管理者にも適用」の設定を確認する |
