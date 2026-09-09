@@ -90,6 +90,10 @@ curl https://xxxx.cloudfront.net/nothing
 - 独自ドメインを設定した場合、Route 53 のホストゾーン(約0.5USD/月)と ACM 証明書は `cleanup.sh` では削除しません。コンソールから手動で削除してください。
 - `cleanup.sh` の実行後は、AWS Billing コンソールで料金が発生していないか確認する習慣をつけましょう。詳しくは [コスト管理ガイド](../../../docs/03-cost-management.md) を参照してください。
 
+## 発展: GitHub Actionsによる自動デプロイ
+
+[`deploy-example.yml`](deploy-example.yml)に、mainブランチへのpushをきっかけにS3への同期とCloudFrontキャッシュ無効化を自動実行するGitHub Actionsのサンプルワークフローを用意しています。このリポジトリ自体には対応するAWSリソースが無いため`.github/workflows/`には配置していません。実際に公開したい静的サイトのリポジトリにコピーして使ってください。詳しくは[本編の発展課題](../README.md#発展課題)を参照してください。
+
 ## 関連ドキュメント
 
 - [本編: レベル1 静的Webサイト公開環境の構築](../README.md)
