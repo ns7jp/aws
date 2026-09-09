@@ -1,5 +1,11 @@
 # environments/dev/variables.tf
 
+variable "region" {
+  description = "リージョン(backend.tfのregionと必ず一致させること。backendブロックは変数を使えないため手動同期が必要)"
+  type        = string
+  default     = "ap-northeast-1"
+}
+
 variable "my_ip_cidr" {
   description = "SSH接続を許可する自分のグローバルIP(CIDR形式)"
   type        = string

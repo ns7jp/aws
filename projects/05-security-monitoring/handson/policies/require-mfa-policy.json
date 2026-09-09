@@ -27,6 +27,15 @@
       ]
     },
     {
+      "Sid": "AllowChangeOwnPasswordAndGetSessionToken",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ChangePassword",
+        "sts:GetSessionToken"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "DenyMostActionsWithoutMFA",
       "Effect": "Deny",
       "NotAction": [
@@ -36,6 +45,7 @@
         "iam:ListMFADevices",
         "iam:ListVirtualMFADevices",
         "iam:ResyncMFADevice",
+        "iam:GetAccountPasswordPolicy",
         "iam:ChangePassword",
         "sts:GetSessionToken"
       ],
