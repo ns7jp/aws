@@ -25,6 +25,10 @@ DB_INSTANCE_CLASS="db.t3.micro"             # RDS のインスタンスクラス
 DB_USERNAME="${DB_USERNAME:?環境変数 DB_USERNAME を設定してください(例: export DB_USERNAME=admin)}"
 DB_PASSWORD="${DB_PASSWORD:?環境変数 DB_PASSWORD を設定してください(8文字以上)}"
 
+# 発展課題(任意・既定は無効): 有効にすると追加のAWSリソースが作成され、追加費用が発生します
+ENABLE_STICKY_SESSION="${ENABLE_STICKY_SESSION:-false}"  # true にするとターゲットグループでスティッキーセッションを有効化
+ENABLE_READ_REPLICA="${ENABLE_READ_REPLICA:-false}"      # true にするとRDSリードレプリカを1台追加
+
 VPC_CIDR="10.0.0.0/16"
 STATE_FILE="$(cd "$(dirname "$0")" && pwd)/.handson-state.env"
 USER_DATA_FILE="$(cd "$(dirname "$0")" && pwd)/user-data.sh"
@@ -210,6 +214,19 @@ TG_ARN=$(aws elbv2 create-target-group \
   --query 'TargetGroups[0].TargetGroupArn' --output text)
 save TG_ARN "$TG_ARN"
 
+# --- 発展課題(任意): スティッキーセッション ---
+# 同じ利用者からの通信を毎回同じEC2に固定します。ログインセッションをアプリ側で
+# 共有していない場合に有効な設定です(cookieはALBが発行するため、EC2側の対応は不要)。
+if [[ "$ENABLE_STICKY_SESSION" == "true" ]]; then
+  echo "[発展課題] ターゲットグループでスティッキーセッションを有効化します"
+  aws elbv2 modify-target-group-attributes \
+    --target-group-arn "$TG_ARN" \
+    --attributes Key=stickiness.enabled,Value=true \
+                 Key=stickiness.type,Value=lb_cookie \
+                 Key=stickiness.lb_cookie.duration_seconds,Value=86400 > /dev/null
+  save STICKY_SESSION_ENABLED "true"
+fi
+
 # --- ALB ha-app-alb(手順20〜21): インターネット向け、パブリックサブネット 2 つ、ha-alb-sg ---
 ALB_ARN=$(aws elbv2 create-load-balancer \
   --name "${NAME_PREFIX}-app-alb" \
@@ -287,6 +304,32 @@ save DB_IDENTIFIER "$DB_IDENTIFIER"
 echo "RDS $DB_IDENTIFIER が利用可能になるまで待機します(Multi-AZ のため 10 分前後かかります)..."
 aws rds wait db-instance-available --db-instance-identifier "$DB_IDENTIFIER"
 
+# --- 発展課題(任意): リードレプリカ ---
+# 読み取り専用の複製インスタンスを追加し、参照系クエリを分散させます。
+# Multi-AZ(可用性目的の待機系)と役割が異なる点がポイントです。
+# リードレプリカの作成にはソース側で自動バックアップ(backup-retention-period > 0)が
+# 有効になっている必要があるため、既定の0から一時的に引き上げてから作成します。
+if [[ "$ENABLE_READ_REPLICA" == "true" ]]; then
+  echo "[発展課題] リードレプリカ作成のため $DB_IDENTIFIER の自動バックアップを有効化します"
+  aws rds modify-db-instance \
+    --db-instance-identifier "$DB_IDENTIFIER" \
+    --backup-retention-period 1 \
+    --apply-immediately > /dev/null
+  aws rds wait db-instance-available --db-instance-identifier "$DB_IDENTIFIER"
+
+  echo "[発展課題] リードレプリカ ${DB_IDENTIFIER}-replica を作成します"
+  DB_REPLICA_IDENTIFIER="${DB_IDENTIFIER}-replica"
+  aws rds create-db-instance-read-replica \
+    --db-instance-identifier "$DB_REPLICA_IDENTIFIER" \
+    --source-db-instance-identifier "$DB_IDENTIFIER" \
+    --db-instance-class "$DB_INSTANCE_CLASS" \
+    --no-publicly-accessible \
+    --tags "Key=Name,Value=${DB_REPLICA_IDENTIFIER}" > /dev/null
+  save DB_REPLICA_IDENTIFIER "$DB_REPLICA_IDENTIFIER"
+  echo "リードレプリカ $DB_REPLICA_IDENTIFIER が利用可能になるまで待機します..."
+  aws rds wait db-instance-available --db-instance-identifier "$DB_REPLICA_IDENTIFIER"
+fi
+
 # ---------------------------------------------------------------------------
 # 結果表示
 # ---------------------------------------------------------------------------
@@ -304,6 +347,12 @@ echo " 構築が完了しました"
 echo "----------------------------------------------------------------------"
 echo " ALB DNS 名     : http://${ALB_DNS}"
 echo " RDS エンドポイント : ${RDS_ENDPOINT}:3306"
+if [[ -n "${DB_REPLICA_IDENTIFIER:-}" ]]; then
+  echo " リードレプリカ    : ${DB_REPLICA_IDENTIFIER}"
+fi
+if [[ "$ENABLE_STICKY_SESSION" == "true" ]]; then
+  echo " スティッキーセッション: 有効"
+fi
 echo "----------------------------------------------------------------------"
 echo " ブラウザで ALB の URL を開き、リロードするたびに Instance ID が"
 echo " 切り替わることを確認してください(ターゲットが healthy になるまで数分)。"

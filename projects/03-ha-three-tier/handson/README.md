@@ -50,6 +50,13 @@ export DB_PASSWORD='8文字以上の強いパスワード'
 
 必要に応じて `build.sh` 先頭の変数(`REGION`、`INSTANCE_TYPE`、`DB_INSTANCE_CLASS` など)を書き換えてください。
 
+発展課題(任意・既定は無効。有効にすると追加費用が発生します)を試す場合は、`build.sh`実行前に以下も指定します。
+
+```bash
+export ENABLE_STICKY_SESSION=true   # ターゲットグループでスティッキーセッションを有効化
+export ENABLE_READ_REPLICA=true     # RDSリードレプリカを1台追加
+```
+
 ### 2. 構築する
 
 ```bash
