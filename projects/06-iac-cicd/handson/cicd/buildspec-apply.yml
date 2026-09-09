@@ -23,7 +23,10 @@ phases:
   pre_build:
     commands:
       # セカンダリアーティファクトの tfplan を作業ディレクトリにコピーする
-      # (CODEBUILD_SRC_DIR_<アーティファクト名> 環境変数で参照できる)
+      # (CODEBUILD_SRC_DIR_<アーティファクト名> 環境変数で参照できる。
+      #  アーティファクト名は buildspec ではなく CodePipeline のアクション設定で決まるため、
+      #  出力アーティファクト名を必ず tfplan-artifact にすること)
+      - test -n "${CODEBUILD_SRC_DIR_tfplan_artifact}" || { echo "CODEBUILD_SRC_DIR_tfplan_artifact が空です。CodePipelineの入力アーティファクト名が tfplan-artifact になっているか確認してください"; exit 1; }
       - cp "${CODEBUILD_SRC_DIR_tfplan_artifact}/tfplan" "${TF_DIR}/tfplan"
       - cd "${TF_DIR}"
       - terraform init -input=false

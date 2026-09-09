@@ -49,8 +49,9 @@ echo "== アカウント ${ACCOUNT_ID} / リージョン ${AWS_DEFAULT_REGION} �
 
 # ---- 1. Secrets Manager: DB 認証情報 ---------------------------------------------
 echo "[1/8] Secrets Manager にシークレット ${SECRET_NAME} を作成"
-SECRET_STRING=$(printf '{"username":"%s","password":"%s","host":"%s","dbname":"%s"}' \
-  "${DB_USERNAME}" "${DB_PASSWORD}" "${RDS_ENDPOINT}" "${WP_DB_NAME}")
+SECRET_STRING=$(jq -n --arg username "${DB_USERNAME}" --arg password "${DB_PASSWORD}" \
+  --arg host "${RDS_ENDPOINT}" --arg dbname "${WP_DB_NAME}" \
+  '{username:$username, password:$password, host:$host, dbname:$dbname}')
 SECRET_ARN=$(aws secretsmanager create-secret \
   --name "${SECRET_NAME}" \
   --description "WordPress DB credentials (level4 handson)" \
