@@ -7,6 +7,7 @@
 #   フェーズ3: AWS Config (レコーダー + 配信チャネル + マネージドルール)
 #   フェーズ4: GuardDuty + EventBridge + SNS メール通知
 #   フェーズ5: AWS WAF (ALB_ARN が指定された場合のみ)
+#   フェーズ6: Security Hub (CloudTrail/Config/GuardDutyの結果を1画面に集約)
 #
 # 作成したリソースの ID は .handson-state.env に保存し、cleanup.sh が参照します。
 # 注意: このスクリプトは実 AWS 環境では未検証です。実行前に内容を必ず確認してください。
@@ -87,7 +88,7 @@ create_bucket() {
 # =============================================================================
 # フェーズ1: IAM グループと MFA 強制ポリシー
 # =============================================================================
-echo "==> [1/5] IAM グループを作成します"
+echo "==> [1/6] IAM グループを作成します"
 # ⚠️ IAM の変更はアカウント全体に影響します。管理者権限で慎重に実行してください。
 aws iam create-group --group-name "${GROUP_ADMIN}"
 aws iam create-group --group-name "${GROUP_DEV}"
@@ -117,7 +118,7 @@ echo "    IAM グループ 3 つと ${MFA_POLICY_NAME} ポリシーを作成し�
 # =============================================================================
 # フェーズ2: CloudTrail
 # =============================================================================
-echo "==> [2/5] CloudTrail 証跡を作成します"
+echo "==> [2/6] CloudTrail 証跡を作成します"
 create_bucket "${TRAIL_BUCKET}"
 
 # バケットポリシーのプレースホルダを sed で埋めて適用
@@ -142,7 +143,7 @@ echo "    証跡 ${TRAIL_NAME} のロギングを開始しました"
 # =============================================================================
 # フェーズ3: AWS Config
 # =============================================================================
-echo "==> [3/5] AWS Config を有効化します"
+echo "==> [3/6] AWS Config を有効化します"
 create_bucket "${CONFIG_BUCKET}"
 sed -e "s/__BUCKET_NAME__/${CONFIG_BUCKET}/g" \
     -e "s/__ACCOUNT_ID__/${ACCOUNT_ID}/g" \
@@ -185,7 +186,7 @@ echo "    Config レコーダーとマネージドルール 3 つを設定しま
 # =============================================================================
 # フェーズ4: GuardDuty + SNS + EventBridge
 # =============================================================================
-echo "==> [4/5] GuardDuty と通知経路を構築します"
+echo "==> [4/6] GuardDuty と通知経路を構築します"
 # 💰 GuardDuty は有効化している間ずっと課金されます (初回 30 日間はトライアル)
 DETECTOR_ID="$(aws guardduty create-detector --enable \
   --finding-publishing-frequency FIFTEEN_MINUTES \
@@ -219,7 +220,7 @@ echo "    GuardDuty (${DETECTOR_ID}) → EventBridge → SNS の通知経路を�
 # フェーズ5: AWS WAF (ALB_ARN 指定時のみ)
 # =============================================================================
 if [ -n "${ALB_ARN}" ]; then
-  echo "==> [5/5] AWS WAF を作成し ALB に関連付けます"
+  echo "==> [5/6] AWS WAF を作成し ALB に関連付けます"
   # 💰 Web ACL は作成している間ずっと月額固定費が発生します
   # AWSManagedRulesCommonRuleSet (SQLi/XSS などの代表的な攻撃パターン) を有効化
   cat > "${WORK_DIR}/waf-rules.json" <<'EOF'
@@ -257,8 +258,19 @@ EOF
   aws wafv2 associate-web-acl --web-acl-arn "${WEB_ACL_ARN}" --resource-arn "${ALB_ARN}"
   echo "    Web ACL ${WEB_ACL_NAME} を ALB に関連付けました"
 else
-  echo "==> [5/5] ALB_ARN が未指定のため WAF フェーズはスキップします"
+  echo "==> [5/6] ALB_ARN が未指定のため WAF フェーズはスキップします"
 fi
+
+# =============================================================================
+# フェーズ6: Security Hub
+# =============================================================================
+echo "==> [6/6] Security Hub を有効化します"
+# 💰 Security Hub は有効化している間、チェック数・取り込んだFinding数に応じて課金されます
+# --enable-default-standards で「AWS基礎セキュリティのベストプラクティス」標準を自動的に
+# サブスクライブします。CloudTrail/Config/GuardDutyの結果は追加設定なしで自動的に集約されます。
+aws securityhub enable-security-hub --enable-default-standards
+save_state SECURITY_HUB_ENABLED "true"
+echo "    Security Hub を有効化しました(標準チェックの結果が出揃うまで数分〜数十分かかります)"
 
 # =============================================================================
 echo ""
@@ -266,4 +278,5 @@ echo "==> 構築が完了しました。状態は ${STATE_FILE} に保存され�
 echo "    1. ${ALERT_EMAIL} に届いた SNS の確認メールを承認してください"
 echo "    2. 証跡の状態確認: aws cloudtrail get-trail-status --name ${TRAIL_NAME} --query IsLogging"
 echo "    3. Config 評価確認: aws configservice describe-compliance-by-config-rule --config-rule-names restricted-ssh"
-echo "    4. 検証が終わったら ./cleanup.sh で削除してください (GuardDuty/Config/WAF は常時課金)"
+echo "    4. Security Hub確認: コンソールの Security Hub > Summary でCloudTrail/Config/GuardDutyの結果が集約されているか確認"
+echo "    5. 検証が終わったら ./cleanup.sh で削除してください (GuardDuty/Config/WAF/Security Hub は常時課金)"
