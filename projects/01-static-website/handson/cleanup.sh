@@ -6,6 +6,7 @@
 #   1. CloudFrontディストリビューションを無効化(disable)→ 反映待ち → 削除
 #   2. OAC(Origin Access Control)を削除
 #   3. S3バケットを空にしてから削除
+#   4. アクセスログ用S3バケットを空にしてから削除(発展課題を実施していた場合のみ)
 #
 # build.sh が書き出した .state ファイルからリソースIDを読み込みます。
 # ⚠️ このスクリプトは実AWS環境で未検証です。実行前に必ず内容を読んでください。
@@ -35,12 +36,14 @@ BUCKET_NAME="${BUCKET_NAME:-}"
 REGION="${REGION:-ap-northeast-1}"
 OAC_ID="${OAC_ID:-}"
 DISTRIBUTION_ID="${DISTRIBUTION_ID:-}"
+LOG_BUCKET_NAME="${LOG_BUCKET_NAME:-}"
 
 echo "=============================================="
 echo " 以下のリソースを削除します"
-echo "   Distribution ID : ${DISTRIBUTION_ID:-(なし)}"
-echo "   OAC ID          : ${OAC_ID:-(なし)}"
-echo "   S3バケット       : ${BUCKET_NAME:-(なし)}"
+echo "   Distribution ID  : ${DISTRIBUTION_ID:-(なし)}"
+echo "   OAC ID           : ${OAC_ID:-(なし)}"
+echo "   S3バケット        : ${BUCKET_NAME:-(なし)}"
+echo "   ログ用S3バケット   : ${LOG_BUCKET_NAME:-(なし・発展課題未実施)}"
 echo "=============================================="
 read -r -p "本当に削除しますか? (yes と入力): " ANSWER
 if [[ "${ANSWER}" != "yes" ]]; then
@@ -113,7 +116,7 @@ fi
 # -----------------------------------------------------------------------------
 if [[ -n "${BUCKET_NAME}" ]]; then
   echo ""
-  echo "[3/3] S3バケット ${BUCKET_NAME} を空にして削除します"
+  echo "[3/4] S3バケット ${BUCKET_NAME} を空にして削除します"
   if aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
     aws s3 rm "s3://${BUCKET_NAME}" --recursive
     aws s3api delete-bucket --bucket "${BUCKET_NAME}" --region "${REGION}"
@@ -122,7 +125,24 @@ if [[ -n "${BUCKET_NAME}" ]]; then
     echo "  -> バケットが存在しません(スキップ)"
   fi
 else
-  echo "[3/3] BUCKET_NAME が未設定のためスキップします"
+  echo "[3/4] BUCKET_NAME が未設定のためスキップします"
+fi
+
+# -----------------------------------------------------------------------------
+# 4. アクセスログ用S3バケットを空にしてから削除(発展課題を実施していた場合のみ)
+# -----------------------------------------------------------------------------
+if [[ -n "${LOG_BUCKET_NAME}" ]]; then
+  echo ""
+  echo "[4/4] ログ用S3バケット ${LOG_BUCKET_NAME} を空にして削除します"
+  if aws s3api head-bucket --bucket "${LOG_BUCKET_NAME}" 2>/dev/null; then
+    aws s3 rm "s3://${LOG_BUCKET_NAME}" --recursive
+    aws s3api delete-bucket --bucket "${LOG_BUCKET_NAME}" --region "${REGION}"
+    echo "  -> 削除しました"
+  else
+    echo "  -> バケットが存在しません(スキップ)"
+  fi
+else
+  echo "[4/4] LOG_BUCKET_NAME が未設定のためスキップします"
 fi
 
 # -----------------------------------------------------------------------------

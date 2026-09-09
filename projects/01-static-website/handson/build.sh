@@ -22,6 +22,10 @@ REGION="ap-northeast-1"
 # 独自ドメイン(任意)。例: "www.example.com"
 # 空文字のままなら CloudFront の既定ドメイン(xxxx.cloudfront.net)で公開します。
 DOMAIN=""
+
+# 発展課題(任意・既定は無効): true にするとCloudFrontのアクセスログをS3に保存する設定を追加します
+# (追加のS3バケットが作成され、わずかにストレージ課金が発生します)
+ENABLE_ACCESS_LOGS="${ENABLE_ACCESS_LOGS:-false}"
 # -----------------------------------------------------------------------------
 # ▲▲▲ ここまで ▲▲▲
 # -----------------------------------------------------------------------------
@@ -151,6 +155,61 @@ echo ""
 echo "[待機] ディストリビューションのデプロイ完了を待ちます(数分〜十数分)..."
 aws cloudfront wait distribution-deployed --id "${DISTRIBUTION_ID}"
 echo "  -> デプロイ完了(ステータス: Deployed)"
+
+# -----------------------------------------------------------------------------
+# 発展課題(任意): CloudFrontアクセスログをS3に保存する
+#   標準ログ(スタンダードロギング)の配信先バケットは、Object Ownershipで
+#   ACLを有効にし、CloudFrontのログ配信グループにFULL_CONTROLを付与する必要があります。
+# -----------------------------------------------------------------------------
+if [[ "${ENABLE_ACCESS_LOGS}" == "true" ]]; then
+  echo ""
+  echo "[発展課題] アクセスログ保存用のS3バケットを作成します"
+  LOG_BUCKET_NAME="${BUCKET_NAME}-logs"
+  if aws s3api head-bucket --bucket "${LOG_BUCKET_NAME}" 2>/dev/null; then
+    echo "  -> バケットは既に存在します(スキップ)"
+  else
+    if [[ "${REGION}" == "us-east-1" ]]; then
+      aws s3api create-bucket --bucket "${LOG_BUCKET_NAME}" --region "${REGION}"
+    else
+      aws s3api create-bucket \
+        --bucket "${LOG_BUCKET_NAME}" \
+        --region "${REGION}" \
+        --create-bucket-configuration LocationConstraint="${REGION}"
+    fi
+  fi
+  # CloudFrontの標準ログ配信にはACLが必要なため、Object Ownershipを一時的に緩めます
+  aws s3api put-bucket-ownership-controls --bucket "${LOG_BUCKET_NAME}" \
+    --ownership-controls Rules='[{ObjectOwnership=BucketOwnerPreferred}]'
+  aws s3api put-bucket-acl --bucket "${LOG_BUCKET_NAME}" \
+    --grant-full-control 'URI="http://acs.amazonaws.com/groups/global/LogDelivery"'
+  echo "LOG_BUCKET_NAME=${LOG_BUCKET_NAME}" >> "${STATE_FILE}"
+
+  echo "[発展課題] ディストリビューションにログ設定を追加します"
+  CURRENT_CONFIG="${WORK_DIR}/current-distribution-config.json"
+  aws cloudfront get-distribution-config --id "${DISTRIBUTION_ID}" --output json > "${CURRENT_CONFIG}"
+  ETAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["ETag"])' "${CURRENT_CONFIG}")"
+  LOGGING_CONFIG="${WORK_DIR}/logging-distribution-config.json"
+  python3 - "${CURRENT_CONFIG}" "${LOG_BUCKET_NAME}" "${LOGGING_CONFIG}" <<'PY'
+import json, sys
+src, log_bucket, dst = sys.argv[1], sys.argv[2], sys.argv[3]
+cfg = json.load(open(src))["DistributionConfig"]
+cfg["Logging"] = {
+    "Enabled": True,
+    "IncludeCookies": False,
+    "Bucket": f"{log_bucket}.s3.amazonaws.com",
+    "Prefix": "cf-access-logs/",
+}
+json.dump(cfg, open(dst, "w"), ensure_ascii=False, indent=2)
+PY
+  aws cloudfront update-distribution \
+    --id "${DISTRIBUTION_ID}" \
+    --if-match "${ETAG}" \
+    --distribution-config "file://${LOGGING_CONFIG}" \
+    --output json > "${WORK_DIR}/update-distribution.json"
+  echo "  -> ログ設定の反映を待ちます(数分〜十数分)..."
+  aws cloudfront wait distribution-deployed --id "${DISTRIBUTION_ID}"
+  echo "  -> 完了(ログは ${LOG_BUCKET_NAME}/cf-access-logs/ 配下に数分〜1時間程度の遅延で届き始めます)"
+fi
 
 # -----------------------------------------------------------------------------
 # STEP4 / STEP5: 独自ドメイン(ACM + Route 53)
