@@ -37,3 +37,11 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate
+
+      - name: tfsec (level 6 kit, static security scan)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: projects/06-iac-cicd/handson
+          # 学習用ポートフォリオのため、まずは検知結果を可視化するだけに留め
+          # CIをブロックしない設定にしています(既知の指摘を確認・整理したら段階的に厳格化する想定)。
+          soft_fail: true
