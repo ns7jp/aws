@@ -158,7 +158,7 @@ flowchart TD
 
 **サーバー構築での勘所**:
 - 起動テンプレートやTerraformにAMI IDを直書きしないのが定石です。AMI IDはリージョンごとに異なり、更新のたびに変わるため、[Parameter Store](06-security-identity.md#parameter-store)の公開パラメータ(`/aws/service/ami-amazon-linux-latest/...`)から最新IDを取得します。
-- Amazon Linux 2023 では[SELinux](#selinux)の既定が「有効かつ警告のみ(permissive)」である(Amazon Linux 2 では既定で無効)など、Amazon Linux 2 と既定値が異なる項目があります。移行時はここを必ず確認します。なお時刻の既定が[UTC](#utc)である点は、どちらの世代でも共通です。
+- [SELinux](#selinux)の既定値(`disabled`/`permissive`/`enforcing`)はAMIやバージョンによって異なることがあるため、Amazon Linux 2 からの移行時は `getenforce` で実機の状態を必ず確認します。なお時刻の既定が[UTC](#utc)である点は、どちらの世代でも共通です。
 - 「なぜAmazon Linuxを選んだのか」は面接で説明できるようにしておきます。AWSとの親和性・追加ライセンス費用が不要・SSM Agent同梱の3点で十分な理由になります。
 
 **よくあるつまずき**: Amazon Linux 2023 で `sudo yum install` と打っても動くことがありますが、これは互換のための入口が用意されているだけです。手順書には `dnf` と書くほうが誤解がありません。また、Amazon Linux 2 向けの記事にある `amazon-linux-extras` は Amazon Linux 2023 には存在しません。
@@ -1200,7 +1200,7 @@ timedatectl         # 「System clock synchronized: yes」を確認
 
 **たとえるなら**: 通常の鍵(パーミッション)に加えて、館内に立つ「独自ルールを持つ警備員」です。鍵を持っていても、「この職種の人はこのエリアに入ってはいけない」というルールで止められることがあります。
 
-**もう少し詳しく**: 動作モードは3つあります。`enforcing`(違反を実際に遮断する)、`permissive`(遮断せず記録だけ残す)、`disabled`(無効)です。現在の状態は `getenforce` で確認できます。Amazon Linux 2023 では既定で `permissive` として有効になっている構成が案内されており(Amazon Linux 2 では既定で無効でした)、この違いを知らないと移行時に戸惑うことがあります。最新の既定値と設定方法は[Amazon Linux 2023の公式ページ](https://aws.amazon.com/jp/linux/amazon-linux-2023/)で確認してください。SELinuxが有効な環境では、パーミッションが正しいのにApacheがファイルを読めない、標準以外のポートで待ち受けられない、といった一見不可解な現象が起こります。原因を切り分けるには `/var/log/audit/audit.log` を確認します。
+**もう少し詳しく**: 動作モードは3つあります。`enforcing`(違反を実際に遮断する)、`permissive`(遮断せず記録だけ残す)、`disabled`(無効)です。現在の状態は `getenforce` で確認できます。既定値はAMIやディストリビューションのバージョンによって異なることがあるため、思い込みで判断せず、必ず実機で `getenforce` を実行して確認してください。最新の既定値と設定方法は[Amazon Linux 2023の公式ページ](https://aws.amazon.com/jp/linux/amazon-linux-2023/)で確認してください。SELinuxが有効な環境では、パーミッションが正しいのにApacheがファイルを読めない、標準以外のポートで待ち受けられない、といった一見不可解な現象が起こります。原因を切り分けるには `/var/log/audit/audit.log` を確認します。
 
 **サーバー構築での勘所**:
 - ⚠️ **「動かないからSELinuxを無効化する」は最後の手段**です。まずは記録を確認し、必要なラベル付け(`restorecon` や `semanage` など)で正す方針を検討します。無効化を選ぶ場合も、その判断と理由を記録に残します。
