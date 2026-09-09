@@ -194,7 +194,7 @@ aws cloudwatch put-metric-alarm \
 
 | 項目 | 月額の目安(東京リージョン、常時稼働) | 注意点 |
 |---|---|---|
-| EC2(t3.small × 2台、Auto Scaling想定) | 数千円〜 | インスタンスタイプ・稼働時間で変動 |
+| EC2(t3.micro × 2台、Auto Scaling想定) | 数千円〜 | WordPressでアクセスが増える場合はt3.small以上への変更を検討。インスタンスタイプ・稼働時間で変動 |
 | RDS for MySQL(Multi-AZ、db.t3.micro相当) | 数千円〜 | Multi-AZは同等スペック1台構成の約2倍のコスト |
 | ElastiCache for Redis(cache.t4g.micro) | 数千円〜 | ⚠️ **無料利用枠がありません**。作成時点から課金されるため検証後は必ず削除する |
 | CloudFront | 数百円〜(転送量に応じた従量課金) | 最初の1TB/月は無料利用枠の対象(詳細は公式ページで要確認) |
