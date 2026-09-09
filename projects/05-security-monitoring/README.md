@@ -229,7 +229,12 @@ aws iam simulate-principal-policy \
 ## 発展課題
 
 - ✅ **Security Hubで複数サービスの結果を1画面に集約する**: [フェーズ6](#フェーズ6-security-hubで複数サービスの結果を1画面に集約する)として本編に組み込み済みです。`handson/build.sh`のフェーズ6でも自動構築でき、`cleanup.sh`のフェーズ6で無効化します。
-- **Organizations併用時のガードレール設計(SCP)に触れる**: 複数のAWSアカウントを組織(Organizations)でまとめて管理する場合、SCP(Service Control Policies。アカウント単位で「そもそも実行できないAPI操作」を組織的に制限する仕組み)を使うことで、IAMポリシーよりさらに上位のレイヤーで「誰であってもこの操作は禁止」という組織全体のガードレール(安全柵)を敷くことができます。
+- ✅ **Organizations併用時のガードレール設計(SCP)に触れる**: [`handson/policies/scp-security-baseline.json`](handson/policies/scp-security-baseline.json)にサンプルのSCP(Service Control Policies)を用意しました。複数のAWSアカウントを組織(Organizations)でまとめて管理する場合、SCPを使うことでIAMポリシーよりさらに上位のレイヤーで「アカウント内の誰であってもこの操作は禁止」という組織全体のガードレール(安全柵)を敷くことができます。このリポジトリのbuild.shは単一アカウント向けのハンズオンキットのためSCP自体を適用するコードは含んでいません(Organizationsの管理アカウントでのみ設定可能なため)。サンプルの内容は以下の4本立てです。
+  - ルートユーザーによるあらゆる操作を禁止(`DenyRootUser`)
+  - CloudTrail・GuardDuty・Configの監視を無効化する操作を禁止(`DenyDisablingSecurityServices`)。ただしSCPはIAMポリシーとの重ね合わせで働く「上限」であり、それ自体が監視を有効化するわけではない点に注意してください(有効化はレベル5本編の手順で行います)
+  - 組織からの離脱を禁止(`DenyLeavingOrganization`)
+  - 承認したリージョン(`ap-northeast-1`・ACM証明書発行等で必要な`us-east-1`)以外でのほとんどの操作を禁止(`DenyOutsideApprovedRegions`)。IAM・Organizations・STS・CloudFront・Route 53などグローバル/リージョン跨ぎのサービスは`NotAction`で除外しています
+  適用する場合は、Organizationsの管理アカウントでSCPとして作成し、対象の組織単位(OU)にアタッチします。SCPは「許可」ではなく「上限」を定義するものなので、実際に操作を許可するにはIAMポリシー側の許可も別途必要です。
 
 ## 面接でのアピールポイント
 

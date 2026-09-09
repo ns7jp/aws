@@ -150,7 +150,7 @@ flowchart TD
 ## 発展課題
 
 1. ✅ **GitHub Actions(GitHubにコードをpushしたことなどをきっかけに、テストやデプロイを自動実行してくれるCI/CDの仕組み)によるS3への自動デプロイ(構築した成果物を実際の公開環境に反映させること)**: [`handson/deploy-example.yml`](handson/deploy-example.yml)にサンプルワークフローを用意しました。mainブランチにpushしたら自動でS3にファイルを同期し、CloudFrontの無効化(invalidation)まで実行します。このリポジトリ自体にはbuild.shで作ったAWSリソースが存在しないため`.github/workflows/`には配置していません。実際に公開したい静的サイトのリポジトリにコピーし、ファイル内のコメントに従ってバケット名・ディストリビューションID・IAMロールを自分の環境に合わせて書き換えて使ってください。認証には長期のアクセスキーではなくOIDC(OpenID Connect)によるAssumeRole方式を採用しています。実は、このポートフォリオ自体をこの構成でデプロイしてみるのもおすすめです。
-2. **CloudFrontのアクセスログをS3に保存・分析**: ディストリビューションの設定でアクセスログを別のS3バケットに出力し、どんなアクセスが来ているかを集計してみましょう。
+2. ✅ **CloudFrontのアクセスログをS3に保存・分析**: `handson/build.sh`実行時に`ENABLE_ACCESS_LOGS=true`を指定すると、ログ保存用のS3バケット(`<バケット名>-logs`)を作成し、ディストリビューションの標準ログ(スタンダードロギング)出力先として設定します。標準ログの配信にはログ用バケットでACLを有効化する必要があるため、`put-bucket-ownership-controls`と`put-bucket-acl`でCloudFrontのログ配信グループにFULL_CONTROLを付与しています。ログは数分〜1時間程度の遅延で`cf-access-logs/`配下に届き始めます。集計にはAmazon Athenaでログ用S3バケットを外部テーブルとして定義するのが定番です([Athenaでの分析手順は公式ドキュメント](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html)を参照してください)。
 
 ## ✅ 面接でのアピールポイント
 

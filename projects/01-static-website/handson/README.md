@@ -94,6 +94,10 @@ curl https://xxxx.cloudfront.net/nothing
 
 [`deploy-example.yml`](deploy-example.yml)に、mainブランチへのpushをきっかけにS3への同期とCloudFrontキャッシュ無効化を自動実行するGitHub Actionsのサンプルワークフローを用意しています。このリポジトリ自体には対応するAWSリソースが無いため`.github/workflows/`には配置していません。実際に公開したい静的サイトのリポジトリにコピーして使ってください。詳しくは[本編の発展課題](../README.md#発展課題)を参照してください。
 
+## 発展: CloudFrontアクセスログの保存
+
+`build.sh`実行前に`export ENABLE_ACCESS_LOGS=true`を指定すると、ログ保存用のS3バケットを追加作成し、ディストリビューションの標準ログ出力先として設定します。追加のS3バケットが作成される分、わずかにストレージ課金が発生します。`cleanup.sh`はこのログ用バケットも合わせて削除します。詳しくは[本編の発展課題](../README.md#発展課題)を参照してください。
+
 ## 関連ドキュメント
 
 - [本編: レベル1 静的Webサイト公開環境の構築](../README.md)
