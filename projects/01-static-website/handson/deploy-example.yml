@@ -1,0 +1,62 @@
+# projects/01-static-website/handson/deploy-example.yml
+#
+# 発展課題「GitHub ActionsによるS3への自動デプロイ」のサンプルです。
+# このファイルはこのリポジトリの .github/workflows/ には配置していません
+# (このリポジトリ自体にはbuild.shで作ったS3バケット・CloudFrontが存在せず、
+#  AWSの認証情報も無いため、置いてもそのままでは動かず失敗するだけです)。
+#
+# 使い方:
+#   1. このファイルを、実際に公開したい静的サイトのリポジトリの
+#      .github/workflows/deploy.yml としてコピーする
+#   2. 下記の env: の値を、build.sh(またはコンソール操作)で作成した
+#      自分のバケット名・CloudFrontディストリビューションIDに書き換える
+#   3. GitHubリポジトリの Settings > Secrets and variables > Actions で
+#      AWS_DEPLOY_ROLE_ARN(下記参照)を設定する
+#   4. mainブランチにpushすると、S3への同期 → CloudFrontキャッシュ無効化が
+#      自動実行される
+#
+# 認証方式について:
+#   アクセスキーをGitHub Secretsに長期保存するのではなく、OIDC(OpenID Connect)で
+#   GitHub ActionsからAssumeできるIAMロールを1つ作る方式を採用しています。
+#   長期のアクセスキーを持たずに済むため、漏えいリスクを構造的に減らせます。
+#   ロール作成手順は https://docs.github.com/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services を参照してください。
+
+name: deploy-static-site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**" # 実際のリポジトリ構成に合わせて調整してください
+
+env:
+  AWS_REGION: ap-northeast-1
+  S3_BUCKET: your-static-site-bucket-name # build.shで作成したバケット名に書き換える
+  CLOUDFRONT_DISTRIBUTION_ID: XXXXXXXXXXXXXX # build.shの出力(.handson-state.env)から書き換える
+
+permissions:
+  id-token: write # OIDCでAssumeRoleするために必要
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync site files to S3
+        run: |
+          aws s3 sync ./site "s3://${S3_BUCKET}" --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/*"
