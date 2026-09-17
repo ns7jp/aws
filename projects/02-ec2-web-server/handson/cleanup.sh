@@ -1,99 +1,134 @@
 #!/usr/bin/env bash
-# =============================================================================
-# cleanup.sh
-# build.sh が作成したリソースを、作成時と逆の順番で削除します。
-#   Elastic IP 解放 → EC2 終了 → SG → ルートテーブル → IGW → サブネット → VPC → キーペア
-# .handson-state.env に記録されたIDを読み込んで動作します。
-# 一部の削除に失敗しても続行できるよう、各手順は個別にエラーを握りつぶしています。
-# =============================================================================
+# Delete only recorded resources. Preserve state and local keys on failure.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_FILE="${SCRIPT_DIR}/.handson-state.env"
-
 if [[ ! -f "${STATE_FILE}" ]]; then
-  echo "エラー: ${STATE_FILE} が見つかりません。build.sh で作成したリソースがないか、既に削除済みです。" >&2
+  echo "エラー: ${STATE_FILE} がありません。削除済みとは判断できません。" >&2
   exit 1
 fi
 
+# Trusted local state from build.sh; never source a file from another person.
 # shellcheck disable=SC1090
 source "${STATE_FILE}"
 REGION="${REGION:-ap-northeast-1}"
+FAILURES=()
+AWS_OUTPUT=""
+AWS_ABSENT=0
 
-echo "=== 削除を開始します (リージョン: ${REGION}) ==="
-
-# --- 1. Elastic IP の関連付け解除と解放(未アタッチのまま残すと課金されます) ---
-if [[ -n "${ALLOC_ID:-}" ]]; then
-  echo "[1/8] Elastic IP を解放中... (${ALLOC_ID})"
-  ASSOC_ID="$(aws ec2 describe-addresses --region "${REGION}" --allocation-ids "${ALLOC_ID}" \
-    --query 'Addresses[0].AssociationId' --output text 2>/dev/null || true)"
-  if [[ -n "${ASSOC_ID}" && "${ASSOC_ID}" != "None" ]]; then
-    aws ec2 disassociate-address --region "${REGION}" --association-id "${ASSOC_ID}" || true
+# Accept only operation-specific EC2 already-absent error codes.
+# https://docs.aws.amazon.com/ec2/latest/devguide/errors-overview.html
+aws_step() {
+  local label="$1" absent_codes="$2" status code
+  local error_pattern='An error occurred \(([^()]*)\) when calling '
+  shift 2
+  AWS_OUTPUT=""
+  AWS_ABSENT=0
+  if AWS_OUTPUT="$(aws ec2 "$@" --region "${REGION}" 2>&1)"; then
+    return 0
+  else
+    status=$?
   fi
-  aws ec2 release-address --region "${REGION}" --allocation-id "${ALLOC_ID}" || true
+  if [[ "${AWS_OUTPUT}" =~ ${error_pattern} ]]; then
+    code="${BASH_REMATCH[1]}"
+    if [[ " ${absent_codes} " == *" ${code} "* && -n "${code}" ]]; then
+      echo "  既に削除・解除済み: ${label} (${code})"
+      AWS_ABSENT=1
+      return 0
+    fi
+  fi
+  FAILURES+=("${label} (exit ${status})")
+  printf '  失敗: %s\n%s\n' "${label}" "${AWS_OUTPUT}" >&2
+  return 1
+}
+
+echo "=== 記録済みリソースの削除を開始します (リージョン: ${REGION}) ==="
+
+# 1. A failed lookup is not proof that the address is absent/unassociated.
+if [[ -n "${ALLOC_ID:-}" ]]; then
+  if aws_step "Elastic IP照会 ${ALLOC_ID}" "InvalidAllocationID.NotFound" \
+      describe-addresses --allocation-ids "${ALLOC_ID}" \
+      --query 'Addresses[0].AssociationId' --output text; then
+    if [[ "${AWS_ABSENT}" -eq 0 ]]; then
+      ASSOC_ID="${AWS_OUTPUT}"
+      if [[ -n "${ASSOC_ID}" && "${ASSOC_ID}" != "None" ]]; then
+        aws_step "Elastic IP関連付け解除 ${ASSOC_ID}" "InvalidAssociationID.NotFound" \
+          disassociate-address --association-id "${ASSOC_ID}" || :
+      fi
+      aws_step "Elastic IP解放 ${ALLOC_ID}" "InvalidAllocationID.NotFound" \
+        release-address --allocation-id "${ALLOC_ID}" || :
+    fi
+  fi
 fi
 
-# --- 2. EC2 インスタンスの終了(完全に terminated になるまで待機) ---
+# 2. A successful terminate request is not proof of termination: wait for it.
 if [[ -n "${INSTANCE_ID:-}" ]]; then
-  echo "[2/8] EC2 インスタンスを終了中... (${INSTANCE_ID})"
-  aws ec2 terminate-instances --region "${REGION}" --instance-ids "${INSTANCE_ID}" > /dev/null || true
-  echo "  terminated になるまで待機します(1〜2分)..."
-  aws ec2 wait instance-terminated --region "${REGION}" --instance-ids "${INSTANCE_ID}" || true
+  if aws_step "EC2終了 ${INSTANCE_ID}" "InvalidInstanceID.NotFound" \
+      terminate-instances --instance-ids "${INSTANCE_ID}"; then
+    if [[ "${AWS_ABSENT}" -eq 0 ]]; then
+      aws_step "EC2終了待機 ${INSTANCE_ID}" "InvalidInstanceID.NotFound" \
+        wait instance-terminated --instance-ids "${INSTANCE_ID}" || :
+    fi
+  fi
 fi
 
-# --- 3. セキュリティグループの削除(インスタンス終了後でないと削除できません) ---
+# Keep trying other recorded resources; aws_step records every failure.
 if [[ -n "${SG_ID:-}" ]]; then
-  echo "[3/8] セキュリティグループを削除中... (${SG_ID})"
-  aws ec2 delete-security-group --region "${REGION}" --group-id "${SG_ID}" || true
+  aws_step "SG削除 ${SG_ID}" "InvalidGroup.NotFound" \
+    delete-security-group --group-id "${SG_ID}" || :
 fi
-
-# --- 4. ルートテーブルの関連付け解除と削除 ---
 if [[ -n "${RTB_ASSOC_ID:-}" ]]; then
-  echo "[4/8] ルートテーブルの関連付けを解除中... (${RTB_ASSOC_ID})"
-  aws ec2 disassociate-route-table --region "${REGION}" --association-id "${RTB_ASSOC_ID}" || true
+  aws_step "ルート関連付け解除 ${RTB_ASSOC_ID}" "InvalidAssociationID.NotFound" \
+    disassociate-route-table --association-id "${RTB_ASSOC_ID}" || :
 fi
 if [[ -n "${RTB_ID:-}" ]]; then
-  echo "      ルートテーブルを削除中... (${RTB_ID})"
-  aws ec2 delete-route-table --region "${REGION}" --route-table-id "${RTB_ID}" || true
+  aws_step "ルートテーブル削除 ${RTB_ID}" "InvalidRouteTableID.NotFound" \
+    delete-route-table --route-table-id "${RTB_ID}" || :
 fi
-
-# --- 5. インターネットゲートウェイのデタッチと削除 ---
-if [[ -n "${IGW_ID:-}" && -n "${VPC_ID:-}" ]]; then
-  echo "[5/8] インターネットゲートウェイをデタッチ・削除中... (${IGW_ID})"
-  aws ec2 detach-internet-gateway --region "${REGION}" --internet-gateway-id "${IGW_ID}" --vpc-id "${VPC_ID}" || true
-  aws ec2 delete-internet-gateway --region "${REGION}" --internet-gateway-id "${IGW_ID}" || true
+if [[ -n "${IGW_ID:-}" ]]; then
+  if [[ -n "${VPC_ID:-}" ]]; then
+    aws_step "IGW解除 ${IGW_ID}" "Gateway.NotAttached InvalidInternetGatewayID.NotFound InvalidVpcID.NotFound" \
+      detach-internet-gateway --internet-gateway-id "${IGW_ID}" --vpc-id "${VPC_ID}" || :
+  fi
+  aws_step "IGW削除 ${IGW_ID}" "InvalidInternetGatewayID.NotFound" \
+    delete-internet-gateway --internet-gateway-id "${IGW_ID}" || :
 fi
-
-# --- 6. サブネットの削除 ---
 if [[ -n "${SUBNET_ID:-}" ]]; then
-  echo "[6/8] サブネットを削除中... (${SUBNET_ID})"
-  aws ec2 delete-subnet --region "${REGION}" --subnet-id "${SUBNET_ID}" || true
+  aws_step "サブネット削除 ${SUBNET_ID}" "InvalidSubnetID.NotFound" \
+    delete-subnet --subnet-id "${SUBNET_ID}" || :
 fi
-
-# --- 7. VPC の削除(中身がすべて消えていないと失敗します) ---
 if [[ -n "${VPC_ID:-}" ]]; then
-  echo "[7/8] VPC を削除中... (${VPC_ID})"
-  aws ec2 delete-vpc --region "${REGION}" --vpc-id "${VPC_ID}" || true
+  aws_step "VPC削除 ${VPC_ID}" "InvalidVpcID.NotFound" \
+    delete-vpc --vpc-id "${VPC_ID}" || :
 fi
-
-# --- 8. キーペアの削除(AWS側の公開鍵)と手元の .pem の削除 ---
 if [[ -n "${KEY_NAME:-}" ]]; then
-  echo "[8/8] キーペアを削除中... (${KEY_NAME})"
-  aws ec2 delete-key-pair --region "${REGION}" --key-name "${KEY_NAME}" || true
+  aws_step "キーペア削除 ${KEY_NAME}" "InvalidKeyPair.NotFound" \
+    delete-key-pair --key-name "${KEY_NAME}" || :
 fi
+
+if [[ "${#FAILURES[@]}" -gt 0 ]]; then
+  printf '\n削除未完了。失敗・未確認の操作:\n' >&2
+  printf '  - %s\n' "${FAILURES[@]}" >&2
+  echo "状態ファイルとローカル秘密鍵を保持しました。原因を解消し、このスクリプトを再実行してください。" >&2
+  exit 1
+fi
+
+# Remove local files only when every recorded AWS operation is confirmed.
 if [[ -n "${PEM_FILE:-}" && -f "${PEM_FILE}" ]]; then
-  rm -f "${PEM_FILE}"
-  echo "  秘密鍵ファイルを削除しました: ${PEM_FILE}"
+  if ! rm -f -- "${PEM_FILE}"; then
+    echo "秘密鍵ファイルを削除できません。状態ファイルを保持しました。" >&2
+    exit 1
+  fi
+fi
+if ! rm -f -- "${STATE_FILE}"; then
+  echo "状態ファイルを削除できません。手元のファイルを確認してください。" >&2
+  exit 1
 fi
 
-# --- 状態ファイルを削除 ---
-rm -f "${STATE_FILE}"
+cat <<'EOF'
 
-cat <<EOF
-
-=== 削除が完了しました ===
-  念のためマネジメントコンソールで、以下が残っていないか確認してください。
-    - EC2 > Elastic IP(未アタッチのEIPは課金対象です)
-    - EC2 > インスタンス(terminated 以外のものがないこと)
-    - VPC > お使いのVPC(${NAME_PREFIX:-handson}-web-vpc が消えていること)
+=== 記録済みリソースの削除API処理を確認しました ===
+各サービスで対象のEC2・EBS・Elastic IP・VPC関連リソースの残存を確認してください。
+この表示はアカウント全体の残存リソースや後日の請求額を確認した証拠ではありません。
 EOF
