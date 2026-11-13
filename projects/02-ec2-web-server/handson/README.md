@@ -4,15 +4,15 @@
 
 > ⚠️ **注記**: このキットは実際の AWS 環境ではまだ検証していません。実行前に必ず各スクリプトの内容を読み、何をするのか理解したうえで実行してください。また、検証が終わったら `./cleanup.sh` でリソースを必ず削除してください。
 
-実測記録の入口は[レベル2の構築・疎通・観測・削除チェック](../../../evidence/level02/README.md)です。実行前に期待値を決め、実測値と区別して記録します。キットはHTTP公開用で、HTTPSの証明書設定は含みません。SGで443を許可するだけではHTTPSは有効になりません。
+実測記録の入口は[レベル2の構築・疎通・観測・削除チェック](../../../evidence/level02/README.md)です。[ログ採取つき実施手順](../../../evidence/level02/capture-runbook.md)では、時刻・終了コード・削除前のID台帳を非公開で保存し、公開用記録へ整理します。実行前に期待値を決め、実測値と区別して記録します。SSH 22とHTTP 80は `MY_IP/32` からのみ許可します。HTTPSの証明書設定は含まず、未使用の443は開けません。本編の一般的な公開Web構成より通信範囲を絞った実測用キットです。
 
 ## 前提条件
 
 - AWS CLI v2 がインストールされていること(`aws --version` で `aws-cli/2.x.x` と表示されること)
 - 使用するAWSプロファイルの認証を設定済みであること（SSO等でログインしたプロファイルも使用できます）
 - 対象アカウント、リージョン、予算、終了時刻を本人が決めていること。`EXPECTED_ACCOUNT_ID` に対象の12桁のアカウントIDを指定します。スクリプトはSTSで認証先との一致を確認してから作成します
-- 使用する IAM ユーザー/ロールに EC2・VPC・SSM パラメータ読み取りの権限があること(学習用途なら `AmazonEC2FullAccess` + `AmazonSSMReadOnlyAccess` 程度で動きます)
-- `bash`・`curl` が使える環境(macOS / Linux / WSL など)
+- 使用する IAM ユーザー/ロールに STS照会、EC2・VPCの作成/参照/削除、SSM公開パラメータ読み取りの権限があること。観測・請求にはCloudWatch/Billingの閲覧権限も必要です。広い管理権限を前提にせず、学習アカウントで必要な操作の許可を確認します
+- `bash`・`curl`・OpenSSH・Git が使える環境(macOS / Linux / WSL など)。`AZ` はそのアカウントの利用可能なAZを確認して指定します
 
 ## ファイルの役割
 
@@ -24,6 +24,7 @@
 | `.handson-state.env` | `build.sh` が作成したリソースIDを記録するファイル(自動生成・`cleanup.sh` が読み込みます) |
 | `handson-key.pem` | `build.sh` が作成する SSH 秘密鍵(自動生成・**絶対に共有しないでください**) |
 | `.gitignore` | `.pem` と状態ファイルを誤ってコミットしないための設定です |
+| `.private-evidence/` | ログ採取手順で使うGit除外済みの非公開原本領域。未加工ログ・台帳をそのまま公開しません |
 
 ## 実行手順
 
@@ -38,7 +39,7 @@
 | `SUBNET_CIDR` | `10.0.1.0/24` | パブリックサブネットのアドレス範囲 |
 | `AZ` | `ap-northeast-1a` | アベイラビリティゾーン |
 | `KEY_NAME` | `handson-key` | キーペア名 |
-| `MY_IP` | (空=自動取得) | SSH を許可する自分のグローバルIP |
+| `MY_IP` | (空=自動取得) | SSHとHTTPを許可する自分のグローバルIPv4（/32は付けない） |
 | `INSTANCE_TYPE` | `t3.micro` | インスタンスタイプ |
 | `NAME_PREFIX` | `handson` | Name タグの接頭辞 |
 | `EXPECTED_ACCOUNT_ID` | なし（指定必須） | 本人が選んだAWSアカウントID。認証先から自動設定せず、意図した対象と照合します |
@@ -48,7 +49,7 @@
 `MY_IP` は空のままなら自動取得されますが、手動で確認したい場合は次のコマンドで自分のグローバルIPを調べられます。
 
 ```bash
-curl -s https://checkip.amazonaws.com
+curl --fail --silent --show-error --connect-timeout 10 --max-time 15 https://checkip.amazonaws.com
 ```
 
 表示された IP を `build.sh` の `MY_IP="..."` に書くか、実行時に環境変数で渡します。
@@ -66,7 +67,7 @@ chmod +x build.sh cleanup.sh
 EXPECTED_ACCOUNT_ID=123456789012 REGION=ap-northeast-1 AZ=ap-northeast-1a ./build.sh
 ```
 
-アカウントIDが未指定・不一致、AWS CLI v2が未導入、既存のローカル秘密鍵がある場合は作成前に停止します。AWS上で同名キーペアが存在して作成に失敗した場合、その既存キーを削除対象へ記録しません。それまでに作成したVPC等は状態ファイルに残るため `cleanup.sh` で回収します。
+アカウントIDが未指定・不一致、AWS CLI v2が未導入、接続元IPv4が不正、自動IP取得に失敗、既存のローカル秘密鍵がある場合は作成前に停止します。AWS上で同名キーペアが存在して作成に失敗した場合、その既存キーを削除対象へ記録しません。それまでに作成したVPC等は状態ファイルに残るため `cleanup.sh` で回収します。
 
 最後に Web ページの URL と SSH コマンドが表示されます。所要時間は未実測です。スクリプトの完了とは別に、次の手順でWebサーバーの動作を確認します。
 
@@ -83,6 +84,8 @@ ssh -i handson-key.pem ec2-user@<Elastic IP>
 接続後、`sudo systemctl status httpd` で `active (running)` になっていることを確認できます。つながらない場合は本編の [トラブルシューティング](../README.md#️-トラブルシューティング) を「自分側 → SG → ルートテーブル → IGW」の順に確認してください。
 
 ### 5. 削除する
+
+削除後にIDで残存照合できるよう、先に[ログ採取手順の削除前台帳](../../../evidence/level02/capture-runbook.md#4-削除前の台帳を保存してから削除する)を非公開で保存します。EC2に接続されたEBSのIDも保存してください。
 
 ```bash
 ./cleanup.sh

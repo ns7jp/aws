@@ -5,7 +5,8 @@
 # ../README.md の「フェーズ5: Webサーバーソフトを入れて公開する」を自動化しています。
 # 実行ログは /var/log/cloud-init-output.log で確認できます。
 # =============================================================================
-set -euxo pipefail
+# IMDSトークンをcloud-initログへ展開しないよう、xtraceは有効にしない。
+set -euo pipefail
 
 # --- 1. パッケージを更新し Apache(httpd) をインストール ---
 dnf update -y
