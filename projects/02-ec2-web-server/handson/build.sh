@@ -60,11 +60,23 @@ if [[ "${ACCOUNT_ID}" != "${EXPECTED_ACCOUNT_ID}" ]]; then
   exit 1
 fi
 
-# MY_IP が未指定なら checkip.amazonaws.com から自動取得します
+# MY_IP が未指定なら checkip.amazonaws.com から自動取得します。
+# 接続失敗・HTML応答・CIDRなどを後段へ渡して、途中まで作成しないこと。
 if [[ -z "${MY_IP}" ]]; then
-  MY_IP="$(curl -s https://checkip.amazonaws.com)"
-  echo "MY_IP を自動取得しました: ${MY_IP}"
+  MY_IP="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 15 \
+    https://checkip.amazonaws.com)"
 fi
+if [[ ! "${MY_IP}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+  echo "エラー: MY_IP は接続元のIPv4アドレスだけを指定してください（/32は付けません）。" >&2
+  exit 1
+fi
+IFS='.' read -r -a IP_OCTETS <<< "${MY_IP}"
+for octet in "${IP_OCTETS[@]}"; do
+  if (( 10#${octet} > 255 )) || [[ "${octet}" =~ ^0[0-9]+$ ]]; then
+    echo "エラー: MY_IP のIPv4表記が不正です。リソースは作成していません。" >&2
+    exit 1
+  fi
+done
 
 # 状態ファイルへ追記するヘルパー関数
 save_state() {
@@ -143,13 +155,13 @@ save_state RTB_ASSOC_ID "${RTB_ASSOC_ID}"
 echo "  RTB_ID=${RTB_ID}"
 
 # -----------------------------------------------------------------------------
-# フェーズ3: セキュリティグループを作成(22 は自分のIPのみ、80/443 は全公開)
+# フェーズ3: SSHとHTTPを接続元IPv4 /32に限定。TLS未設定の443は開けない。
 # -----------------------------------------------------------------------------
 echo "[5/9] セキュリティグループを作成中..."
 SG_ID="$(aws ec2 create-security-group \
   --region "${REGION}" \
   --group-name "${NAME_PREFIX}-web-sg" \
-  --description "handson web server SG: SSH from my IP, HTTP/HTTPS from anywhere" \
+  --description "handson web server SG: SSH and HTTP from my IP only" \
   --vpc-id "${VPC_ID}" \
   --tag-specifications "ResourceType=security-group,Tags=[{Key=Name,Value=${NAME_PREFIX}-web-sg}]" \
   --query 'GroupId' --output text)"
@@ -158,9 +170,7 @@ save_state SG_ID "${SG_ID}"
 aws ec2 authorize-security-group-ingress --region "${REGION}" --group-id "${SG_ID}" \
   --protocol tcp --port 22 --cidr "${MY_IP}/32" > /dev/null
 aws ec2 authorize-security-group-ingress --region "${REGION}" --group-id "${SG_ID}" \
-  --protocol tcp --port 80 --cidr 0.0.0.0/0 > /dev/null
-aws ec2 authorize-security-group-ingress --region "${REGION}" --group-id "${SG_ID}" \
-  --protocol tcp --port 443 --cidr 0.0.0.0/0 > /dev/null
+  --protocol tcp --port 80 --cidr "${MY_IP}/32" > /dev/null
 echo "  SG_ID=${SG_ID}"
 
 # -----------------------------------------------------------------------------

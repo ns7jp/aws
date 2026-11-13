@@ -3,3 +3,6 @@
 
 # build.sh が生成する作成済みリソースIDの記録ファイル
 .handson-state.env
+
+# 実行ログ・リソースID台帳・スクリーンショットの未加工原本
+.private-evidence/

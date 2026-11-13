@@ -116,6 +116,35 @@ class BuildOwnershipTests(unittest.TestCase):
         self.assertEqual(self.actions(), [])
         self.assertFalse(self.state.exists())
 
+    def test_invalid_source_address_refuses_before_resource_creation(self):
+        for address in ("198.51.100.10/32", "0.0.0.0/0", "256.1.2.3", "01.2.3.4", "<html>error</html>"):
+            with self.subTest(address=address):
+                result = self.run_script("build.sh", MY_IP=address)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.actions(), [])
+                self.assertFalse(self.state.exists())
+
+    def test_only_ssh_and_http_are_open_to_the_selected_host(self):
+        result = self.run_script("build.sh")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rules = [line for line in (self.path / "aws-calls.log").read_text().splitlines()
+                 if line.startswith("ec2 authorize-security-group-ingress ")]
+        self.assertEqual(len(rules), 2)
+        self.assertTrue(any("--port 22 " in rule for rule in rules))
+        self.assertTrue(any("--port 80 " in rule for rule in rules))
+        self.assertTrue(all("--cidr 198.51.100.10/32" in rule for rule in rules))
+        self.assertFalse(any("0.0.0.0/0" in rule or "--port 443 " in rule for rule in rules))
+
+    def test_ip_lookup_failure_never_creates_resources(self):
+        mock_curl = self.path / "bin/curl"
+        mock_curl.write_text("#!/usr/bin/env bash\necho 'mock lookup failure' >&2\nexit 22\n",
+                             encoding="utf-8", newline="\n")
+        mock_curl.chmod(0o755)
+        result = self.run_script("build.sh", MY_IP="")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.actions(), [])
+        self.assertFalse(self.state.exists())
+
     def test_explicit_region_is_persisted_and_used_for_cleanup(self):
         result = self.run_script("build.sh", REGION="us-west-2", AZ="us-west-2b")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
